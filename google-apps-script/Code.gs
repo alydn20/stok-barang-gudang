@@ -112,12 +112,13 @@ function getAllStock() {
       const bc  = r[0].toString()
       const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
       return {
-        barcode:  bc,
-        nama:     r[1].toString(),
-        qty:      qty.toString(),
-        exp:      r[6] ? formatTgl(r[6]) : '',
-        posisi:   r[7].toString(),
-        kategori: r[8] ? r[8].toString() : '',
+        barcode:   bc,
+        nama:      r[1].toString(),
+        stokAwal:  Number(r[2]) || 0,
+        qty:       qty.toString(),
+        exp:       r[6] ? formatTgl(r[6]) : '',
+        posisi:    r[7].toString(),
+        kategori:  r[8] ? r[8].toString() : '',
       }
     })
   return { items }
@@ -158,7 +159,7 @@ function getHistory(barcode) {
 // ---- STOCK IN ----
 
 function stockIn(data) {
-  const { barcode, nama, qty, exp, posisi, catatan, tanggal, kategori } = data
+  const { barcode, nama, qty, exp, posisi, catatan, tanggal, kategori, stokAwal } = data
   const ss      = SpreadsheetApp.getActiveSpreadsheet()
   const sheetIn = ss.getSheetByName(SHEET_MASUK)
   if (!sheetIn) return { success: false, error: 'Sheet Barang_Masuk tidak ditemukan.' }
@@ -168,7 +169,7 @@ function stockIn(data) {
     barcode, nama || '', Number(qty) || 0, catatan || ''
   ])
 
-  upsertMaster(barcode, nama, exp, posisi, undefined, kategori)
+  upsertMaster(barcode, nama, exp, posisi, stokAwal !== undefined ? Number(stokAwal) : undefined, kategori)
   return { success: true }
 }
 
@@ -196,7 +197,7 @@ function stockOut(data) {
 
 // ---- UPDATE / ADD ITEM ----
 
-function updateItem(data) { return upsertMaster(data.barcode, data.nama, data.exp, data.posisi, undefined, data.kategori) }
+function updateItem(data) { return upsertMaster(data.barcode, data.nama, data.exp, data.posisi, data.stokAwal !== undefined ? Number(data.stokAwal) : undefined, data.kategori) }
 function addItem(data)    { return upsertMaster(data.barcode, data.nama || 'BARANG BARU', data.exp, data.posisi, Number(data.qty) || 0, data.kategori) }
 
 // ---- UPSERT MASTER STOK ----
@@ -212,10 +213,11 @@ function upsertMaster(barcode, nama, exp, posisi, stokAwal, kategori) {
     for (let i = 0; i < kodes.length; i++) {
       if (kodes[i][0].toString().trim() === barcode.toString().trim()) {
         const row = i + 2
-        if (nama)                    sheet.getRange(row, 2).setValue(nama)
-        if (exp !== undefined && exp) sheet.getRange(row, 7).setValue(exp)
-        if (posisi)                  sheet.getRange(row, 8).setValue(posisi)
-        if (kategori !== undefined)  sheet.getRange(row, 9).setValue(kategori || '')
+        if (nama)                       sheet.getRange(row, 2).setValue(nama)
+        if (stokAwal !== undefined)     sheet.getRange(row, 3).setValue(Number(stokAwal) || 0)
+        if (exp !== undefined && exp)   sheet.getRange(row, 7).setValue(exp)
+        if (posisi)                     sheet.getRange(row, 8).setValue(posisi)
+        if (kategori !== undefined)     sheet.getRange(row, 9).setValue(kategori || '')
         _updateRowTotals(sheet, barcode.toString().trim(), row)
         return { success: true }
       }

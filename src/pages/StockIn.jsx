@@ -3,7 +3,7 @@ import { ScanLine, CheckCircle2, XCircle, PackagePlus, Loader2 } from 'lucide-re
 import Scanner from '../components/Scanner'
 import { sheetsApi } from '../services/sheetsApi'
 
-const empty = { barcode: '', nama: '', qty: '', exp: '', posisi: '', catatan: '', kategori: '' }
+const empty = { barcode: '', nama: '', qty: '', exp: '', posisi: '', catatan: '', kategori: '', stokAwal: '' }
 
 export default function StockIn() {
   const [form, setForm] = useState(empty)
@@ -56,7 +56,7 @@ export default function StockIn() {
     if (!form.barcode || !form.qty) return setStatus({ type: 'error', msg: 'Barcode dan qty wajib diisi.' })
     setLoading(true); setStatus(null)
     try {
-      await sheetsApi.stockIn({ ...form, tanggal: new Date().toISOString() })
+      await sheetsApi.stockIn({ ...form, stokAwal: form.stokAwal !== '' ? Number(form.stokAwal) : 0, tanggal: new Date().toISOString() })
       setStatus({ type: 'success', msg: 'Barang masuk berhasil disimpan.' })
       setForm(empty); setFound(false)
     } catch (e) {
@@ -130,10 +130,22 @@ export default function StockIn() {
           />
         </div>
 
+        {/* Stok Awal — hanya muncul untuk barang baru */}
+        {found === false && (
+          <div style={s.stokAwalBox}>
+            <p style={s.stokAwalTitle}>Stok Pembukaan</p>
+            <p style={s.stokAwalDesc}>Isi jika barang ini sudah ada sebelum pakai aplikasi. Kosongkan jika mulai dari 0.</p>
+            <div>
+              <label className="label">Stok Awal (pcs)</label>
+              <input className="input" type="number" min="0" value={form.stokAwal} onChange={e => set('stokAwal', e.target.value)} placeholder="0" />
+            </div>
+          </div>
+        )}
+
         {/* Qty & Exp */}
         <div style={s.row2}>
           <div style={{ flex: 1 }}>
-            <label className="label">Qty (pcs) <span style={s.required}>*</span></label>
+            <label className="label">Qty Masuk (pcs) <span style={s.required}>*</span></label>
             <input className="input" type="number" min="1" value={form.qty} onChange={e => set('qty', e.target.value)} placeholder="0" required />
           </div>
           <div style={{ flex: 1 }}>
@@ -188,5 +200,8 @@ const s = {
   notFoundNote: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#D97706', marginTop: 5 },
   searchNote:   { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748B', marginTop: 5 },
   inputLocked:  { background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' },
+  stokAwalBox:  { background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 },
+  stokAwalTitle:{ fontSize: 13, fontWeight: 700, color: '#92400E' },
+  stokAwalDesc: { fontSize: 12, color: '#B45309', lineHeight: 1.4 },
   clearBtn:     { flexShrink: 0, width: 44, height: 44, borderRadius: 10, background: '#FEF2F2', border: '1.5px solid #FECACA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 }

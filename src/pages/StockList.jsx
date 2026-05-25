@@ -67,7 +67,7 @@ export default function StockList() {
 
   // ---- EDIT ----
   const handleEdit = (item) => {
-    setEditItem({ ...item, _orig: item.barcode })
+    setEditItem({ ...item, _orig: item.barcode, stokAwal: item.stokAwal ?? '' })
     setStatusMsg(null)
   }
 
@@ -80,10 +80,11 @@ export default function StockList() {
         exp:      editItem.exp,
         posisi:   editItem.posisi,
         kategori: editItem.kategori,
+        stokAwal: editItem.stokAwal !== '' ? Number(editItem.stokAwal) : undefined,
       })
       setStatusMsg({ type: 'success', msg: 'Berhasil disimpan.' })
       setItems(prev => prev.map(i => i.barcode === editItem._orig
-        ? { ...i, nama: editItem.nama, exp: editItem.exp, posisi: editItem.posisi, kategori: editItem.kategori }
+        ? { ...i, nama: editItem.nama, exp: editItem.exp, posisi: editItem.posisi, kategori: editItem.kategori, stokAwal: editItem.stokAwal }
         : i))
       setTimeout(() => { setEditItem(null); setStatusMsg(null) }, 800)
     } catch (e) {
@@ -246,9 +247,17 @@ export default function StockList() {
               <button onClick={() => setEditItem(null)} style={s.closeBtn}><X size={18} /></button>
             </div>
             <div style={s.modalBody}>
+              <p style={s.modalBarcode}>{editItem.barcode}</p>
+
               <label className="label">Nama Barang</label>
               <input className="input" value={editItem.nama}
                 onChange={e => setEditItem(v => ({ ...v, nama: e.target.value }))} />
+
+              <label className="label" style={{ marginTop: 10 }}>Stok Awal (pcs)</label>
+              <input className="input" type="number" min="0" value={editItem.stokAwal ?? ''}
+                onChange={e => setEditItem(v => ({ ...v, stokAwal: e.target.value }))}
+                placeholder="Stok sebelum pakai aplikasi (0 jika tidak ada)" />
+              <p style={s.stokAwalHint}>Stok final = Stok Awal + Total Masuk − Total Keluar</p>
 
               <label className="label" style={{ marginTop: 10 }}>Kategori</label>
               <input className="input" value={editItem.kategori || ''}
@@ -335,10 +344,12 @@ const s = {
   actionBtn:   { width: 26, height: 26, border: '1px solid #E2E8F0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 },
   modal:       { background: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'auto' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px', borderBottom: '1px solid #E2E8F0' },
-  modalTitle:  { fontSize: 17, fontWeight: 700, color: '#0F172A' },
-  closeBtn:    { background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 },
-  modalBody:   { padding: '16px 20px' },
-  modalFooter: { display: 'flex', gap: 10, padding: '12px 20px 20px' },
-  btnCancel:   { flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer' },
+  modalHeader:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px', borderBottom: '1px solid #E2E8F0' },
+  modalTitle:    { fontSize: 17, fontWeight: 700, color: '#0F172A' },
+  closeBtn:      { background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 },
+  modalBody:     { padding: '16px 20px' },
+  modalBarcode:  { fontSize: 12, color: '#94A3B8', fontFamily: 'monospace', marginBottom: 10 },
+  stokAwalHint:  { fontSize: 11, color: '#64748B', marginTop: 4 },
+  modalFooter:   { display: 'flex', gap: 10, padding: '12px 20px 20px' },
+  btnCancel:     { flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer' },
 }
