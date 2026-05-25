@@ -76,9 +76,9 @@ export default function Settings() {
     if (!gasUrl.trim()) return
     setTesting(true); setTestResult(null)
     try {
-      const res  = await fetch(`${gasUrl.trim()}?action=ping`)
+      const res  = await fetch(`/api/gas?${new URLSearchParams({ _url: gasUrl.trim(), action: 'ping' })}`)
       const data = await res.json()
-      setTestResult({ ok: data.status === 'ok', msg: data.status === 'ok' ? 'Koneksi ke Google Sheets berhasil.' : 'Server merespons tapi status tidak valid.' })
+      setTestResult({ ok: data.status === 'ok', msg: data.status === 'ok' ? 'Koneksi ke Google Sheets berhasil.' : 'Server merespons tapi status tidak valid: ' + JSON.stringify(data) })
     } catch (e) {
       setTestResult({ ok: false, msg: 'Gagal terhubung: ' + e.message })
     } finally { setTesting(false) }

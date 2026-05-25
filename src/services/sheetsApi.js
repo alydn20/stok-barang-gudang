@@ -26,7 +26,7 @@ async function getUrl() {
 async function callGAS(action, params = {}) {
   const url = await getUrl()
   if (!url) throw new Error('URL belum dikonfigurasi. Buka halaman Setelan.')
-  const res = await fetch(`${url}?${new URLSearchParams({ action, ...params })}`)
+  const res = await fetch(`/api/gas?${new URLSearchParams({ _url: url, action, ...params })}`)
   if (!res.ok) throw new Error(`HTTP error ${res.status}`)
   return res.json()
 }
@@ -34,10 +34,10 @@ async function callGAS(action, params = {}) {
 async function postGAS(action, data) {
   const url = await getUrl()
   if (!url) throw new Error('URL belum dikonfigurasi. Buka halaman Setelan.')
-  const res = await fetch(url, {
+  const res = await fetch('/api/gas', {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action, ...data }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ _url: url, action, ...data }),
   })
   if (!res.ok) throw new Error(`HTTP error ${res.status}`)
   return res.json()
