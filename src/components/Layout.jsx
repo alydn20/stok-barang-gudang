@@ -35,10 +35,6 @@ export default function Layout({ children }) {
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          <span className="sidebar-footer-name">Muhamad Aliyudin</span>
-          <span className="sidebar-footer-tag">PEMULAOLD</span>
-        </div>
       </aside>
 
       {/* Main content */}

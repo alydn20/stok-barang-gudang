@@ -9,62 +9,10 @@
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; }
 
-      #credit {
-        position: fixed;
-        bottom: 62px;
-        left: 0;
-        right: 0;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 99;
-        height: 20px;
-        display: flex;
-        align-items: center;
-      }
-
-      #credit .marquee-track {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        white-space: nowrap;
-        font-size: 11px;
-        color: #94A3B8;
-        letter-spacing: 0.3px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        animation: marquee 18s linear infinite;
-        /* Mulai dari kanan layar */
-        transform: translateX(100vw);
-      }
-
-      #credit strong {
-        color: #64748B;
-        font-weight: 600;
-      }
-
-      #credit .tag {
-        background: #EFF6FF;
-        color: #2563EB;
-        font-weight: 700;
-        font-size: 10px;
-        padding: 1px 8px;
-        border-radius: 99px;
-        letter-spacing: 0.5px;
-      }
-
-      @keyframes marquee {
-        0%   { transform: translateX(100vw); }
-        100% { transform: translateX(-100%); }
-      }
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <div id="credit">
-      <span class="marquee-track">
-        Dibuat oleh &nbsp;<strong>Muhamad Aliyudin</strong>&nbsp;
-        <span class="tag">PEMULAOLD</span>
-      </span>
-    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
