@@ -33,7 +33,11 @@
         animation: marquee 18s linear infinite;
         transform: translateX(100vw);
       }
-      #credit strong { color: #64748B; font-weight: 600; }
+      #credit strong {
+        color: #64748B;
+        font-weight: 600;
+        animation: blink 1.2s ease-in-out infinite;
+      }
       #credit .tag {
         background: #EFF6FF;
         color: #2563EB;
@@ -42,10 +46,15 @@
         padding: 1px 8px;
         border-radius: 99px;
         letter-spacing: 0.5px;
+        animation: blink 1.2s ease-in-out infinite 0.6s;
       }
       @keyframes marquee {
         0%   { transform: translateX(100vw); }
         100% { transform: translateX(-100%); }
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.15; }
       }
       @media (min-width: 768px) { #credit { display: none; } }
     </style>
