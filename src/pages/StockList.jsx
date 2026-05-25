@@ -108,7 +108,7 @@ export default function StockList() {
           <span>{search ? `Tidak ditemukan untuk "${search}"` : 'Belum ada barang tercatat'}</span>
         </div>
       ) : (
-        <div style={s.list}>
+        <div style={s.list} className="stock-list-grid">
           {filtered.map((item, i) => {
             const es = expStatus(item.exp)
             const ac = accentColor(item)

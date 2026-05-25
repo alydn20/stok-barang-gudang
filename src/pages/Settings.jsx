@@ -125,6 +125,8 @@ export default function Settings() {
         )}
       </div>
 
+      <div className="settings-layout">
+
       {/* Setup Vercel KV */}
       <div className="card" style={s.card}>
         <div style={s.cardHeader}>
@@ -179,6 +181,8 @@ export default function Settings() {
           </div>
         ))}
       </div>
+
+      </div>{/* end settings-layout */}
     </div>
   )
 }

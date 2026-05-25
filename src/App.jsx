@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Layout from './components/Layout'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import StockIn from './pages/StockIn'
@@ -11,14 +12,16 @@ import Settings from './pages/Settings'
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/masuk" element={<StockIn />} />
-        <Route path="/keluar" element={<StockOut />} />
-        <Route path="/cari" element={<Search />} />
-        <Route path="/stok" element={<StockList />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
+      <Layout>
+        <Routes>
+          <Route path="/"        element={<Home />}      />
+          <Route path="/masuk"   element={<StockIn />}   />
+          <Route path="/keluar"  element={<StockOut />}  />
+          <Route path="/cari"    element={<Search />}    />
+          <Route path="/stok"    element={<StockList />} />
+          <Route path="/settings"element={<Settings />}  />
+        </Routes>
+      </Layout>
       <Navbar />
     </BrowserRouter>
   )

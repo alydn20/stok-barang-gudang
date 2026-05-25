@@ -38,7 +38,7 @@ export default function StockOut() {
   }
 
   return (
-    <div className="page">
+    <div className="page form-page">
       {showScanner && <Scanner onDetected={handleBarcodeScan} onCancel={() => setShowScanner(false)} />}
 
       <div className="page-header">

@@ -42,7 +42,7 @@ export default function StockIn() {
   }
 
   return (
-    <div className="page">
+    <div className="page form-page">
       {showScanner && <Scanner onDetected={handleBarcodeScan} onCancel={() => setShowScanner(false)} />}
 
       {/* Page Header */}

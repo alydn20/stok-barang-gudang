@@ -45,7 +45,7 @@ export default function Home() {
       </div>
 
       {/* Stats */}
-      <div style={s.statsRow}>
+      <div style={s.statsRow} className="home-grid-stats">
         <div style={s.statCard}>
           <div style={{ ...s.statIcon, background: '#EFF6FF' }}>
             <Boxes size={18} color="#2563EB" />
@@ -86,7 +86,7 @@ export default function Home() {
 
       {/* Action Grid */}
       <p style={s.sectionTitle}>Menu Utama</p>
-      <div style={s.grid}>
+      <div style={s.grid} className="home-grid-actions">
         {actions.map(({ label, icon: Icon, color, bg, path }) => (
           <button key={path} onClick={() => navigate(path)} style={s.actionCard}>
             <div style={{ ...s.actionIcon, background: bg }}>

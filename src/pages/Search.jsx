@@ -51,6 +51,9 @@ export default function Search() {
         </div>
       </div>
 
+      <div className="search-layout">
+      {/* Kolom kiri: search input */}
+      <div>
       {/* Search bar */}
       <div style={s.searchRow}>
         <input
@@ -68,7 +71,10 @@ export default function Search() {
           {loading ? <Loader2 size={17} className="spin" /> : 'Cari'}
         </button>
       </div>
+      </div>{/* end kolom kiri */}
 
+      {/* Kolom kanan: hasil */}
+      <div>
       {/* Not found */}
       {notFound && (
         <div className="empty-state fade-in">
@@ -158,6 +164,8 @@ export default function Search() {
           ))}
         </div>
       )}
+      </div>{/* end kolom kanan */}
+      </div>{/* end search-layout */}
     </div>
   )
 }
