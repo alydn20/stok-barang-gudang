@@ -4,8 +4,8 @@
 //
 // Master_Stok kolom:
 //   A: Kode    B: Nama    C: Stok Awal
-//   D: Total Masuk (SUMIF)   E: Total Keluar (SUMIF)
-//   F: Stok Akhir (formula)  G: Kadaluarsa   H: Posisi Rak
+//   D: (kosong)  E: (kosong)  F: (kosong)
+//   G: Kadaluarsa   H: Posisi Rak   I: Kategori
 // ============================================================
 
 const SHEET_MASTER = 'Master_Stok'
@@ -22,6 +22,7 @@ function doGet(e) {
     else if (action === 'search')     result = searchByBarcode(e.parameter.barcode)
     else if (action === 'getAllStock') result = getAllStock()
     else if (action === 'getHistory') result = getHistory(e.parameter.barcode)
+    else if (action === 'getStats')   result = getStats()
     else                              result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
@@ -38,6 +39,7 @@ function doPost(e) {
     else if (action === 'stockOut')   result = stockOut(data)
     else if (action === 'updateItem') result = updateItem(data)
     else if (action === 'addItem')    result = addItem(data)
+    else if (action === 'deleteItem') result = deleteItem(data)
     else                              result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
@@ -75,18 +77,19 @@ function searchByBarcode(barcode) {
   const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
   const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
 
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues()
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues()
   for (const r of data) {
     if (r[0].toString().trim() === barcode.toString().trim()) {
       const bc  = r[0].toString()
       const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
       return {
-        found:   true,
-        barcode: bc,
-        nama:    r[1].toString(),
-        qty:     qty.toString(),
-        exp:     r[6] ? formatTgl(r[6]) : '',
-        posisi:  r[7].toString(),
+        found:    true,
+        barcode:  bc,
+        nama:     r[1].toString(),
+        qty:      qty.toString(),
+        exp:      r[6] ? formatTgl(r[6]) : '',
+        posisi:   r[7].toString(),
+        kategori: r[8] ? r[8].toString() : '',
       }
     }
   }
@@ -103,17 +106,18 @@ function getAllStock() {
   const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
   const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
 
-  const items = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues()
+  const items = sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues()
     .filter(r => r[0])
     .map(r => {
       const bc  = r[0].toString()
       const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
       return {
-        barcode: bc,
-        nama:    r[1].toString(),
-        qty:     qty.toString(),
-        exp:     r[6] ? formatTgl(r[6]) : '',
-        posisi:  r[7].toString(),
+        barcode:  bc,
+        nama:     r[1].toString(),
+        qty:      qty.toString(),
+        exp:      r[6] ? formatTgl(r[6]) : '',
+        posisi:   r[7].toString(),
+        kategori: r[8] ? r[8].toString() : '',
       }
     })
   return { items }
@@ -154,7 +158,7 @@ function getHistory(barcode) {
 // ---- STOCK IN ----
 
 function stockIn(data) {
-  const { barcode, nama, qty, exp, posisi, catatan, tanggal } = data
+  const { barcode, nama, qty, exp, posisi, catatan, tanggal, kategori } = data
   const ss      = SpreadsheetApp.getActiveSpreadsheet()
   const sheetIn = ss.getSheetByName(SHEET_MASUK)
   if (!sheetIn) return { success: false, error: 'Sheet Barang_Masuk tidak ditemukan.' }
@@ -164,8 +168,7 @@ function stockIn(data) {
     barcode, nama || '', Number(qty) || 0, catatan || ''
   ])
 
-  // Update atau daftarkan barang di Master_Stok
-  upsertMaster(barcode, nama, exp, posisi)
+  upsertMaster(barcode, nama, exp, posisi, undefined, kategori)
   return { success: true }
 }
 
@@ -192,37 +195,136 @@ function stockOut(data) {
 
 // ---- UPDATE / ADD ITEM ----
 
-function updateItem(data) { return upsertMaster(data.barcode, data.nama, data.exp, data.posisi) }
-function addItem(data)    { return upsertMaster(data.barcode, data.nama || 'BARANG BARU', data.exp, data.posisi, Number(data.qty) || 0) }
+function updateItem(data) { return upsertMaster(data.barcode, data.nama, data.exp, data.posisi, undefined, data.kategori) }
+function addItem(data)    { return upsertMaster(data.barcode, data.nama || 'BARANG BARU', data.exp, data.posisi, Number(data.qty) || 0, data.kategori) }
 
 // ---- UPSERT MASTER STOK ----
 
-function upsertMaster(barcode, nama, exp, posisi, stokAwal) {
+function upsertMaster(barcode, nama, exp, posisi, stokAwal, kategori) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
   if (!sheet) return { success: false, error: 'Master_Stok tidak ditemukan.' }
 
   const lastRow = sheet.getLastRow()
 
-  // Cari baris yang ada
   if (lastRow > 1) {
     const kodes = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
     for (let i = 0; i < kodes.length; i++) {
       if (kodes[i][0].toString().trim() === barcode.toString().trim()) {
         const row = i + 2
-        if (nama)   sheet.getRange(row, 2).setValue(nama)
-        if (exp)    sheet.getRange(row, 7).setValue(exp)
-        if (posisi) sheet.getRange(row, 8).setValue(posisi)
+        if (nama)                    sheet.getRange(row, 2).setValue(nama)
+        if (exp !== undefined && exp) sheet.getRange(row, 7).setValue(exp)
+        if (posisi)                  sheet.getRange(row, 8).setValue(posisi)
+        if (kategori !== undefined)  sheet.getRange(row, 9).setValue(kategori || '')
         return { success: true }
       }
     }
   }
 
-  // Barang baru — tambah baris (stok dihitung dari transaksi, bukan formula)
   sheet.appendRow([
     barcode, nama || 'BARANG BARU', stokAwal !== undefined ? stokAwal : 0,
-    '', '', '', exp || '', posisi || ''
+    '', '', '', exp || '', posisi || '', kategori || ''
   ])
   return { success: true }
+}
+
+// ---- DELETE ITEM ----
+
+function deleteItem(data) {
+  const { barcode } = data
+  if (!barcode) return { success: false, error: 'Barcode diperlukan.' }
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
+  if (!sheet) return { success: false, error: 'Master_Stok tidak ditemukan.' }
+
+  const lastRow = sheet.getLastRow()
+  if (lastRow < 2) return { success: false, error: 'Barang tidak ditemukan.' }
+
+  const kodes = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
+  for (let i = 0; i < kodes.length; i++) {
+    if (kodes[i][0].toString().trim() === barcode.toString().trim()) {
+      sheet.deleteRow(i + 2)
+      return { success: true }
+    }
+  }
+  return { success: false, error: 'Barang tidak ditemukan.' }
+}
+
+// ---- STATS ----
+
+function getStats() {
+  const ss      = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet   = ss.getSheetByName(SHEET_MASTER)
+  const sheetIn = ss.getSheetByName(SHEET_MASUK)
+  const sheetOut= ss.getSheetByName(SHEET_KELUAR)
+
+  const totMasuk  = _sumByBarcode(sheetIn)
+  const totKeluar = _sumByBarcode(sheetOut)
+
+  let totalItem = 0, totalStok = 0, lowStock = 0, expiringSoon = 0, expired = 0
+  const today = new Date(); today.setHours(0,0,0,0)
+  const in30  = new Date(today); in30.setDate(today.getDate() + 30)
+
+  if (sheet && sheet.getLastRow() > 1) {
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues().filter(r => r[0])
+    totalItem = rows.length
+    rows.forEach(r => {
+      const bc  = r[0].toString()
+      const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
+      totalStok += qty
+      if (qty <= 3)  lowStock++
+      if (r[6]) {
+        const exp = new Date(r[6]); exp.setHours(0,0,0,0)
+        if (exp < today)          expired++
+        else if (exp <= in30)     expiringSoon++
+      }
+    })
+  }
+
+  return {
+    totalItem,
+    totalStok,
+    lowStock,
+    expiringSoon,
+    expired,
+    todayMasuk:  _sumToday(sheetIn),
+    todayKeluar: _sumToday(sheetOut),
+    weeklyChart: _weeklyChart(sheetIn, sheetOut),
+  }
+}
+
+function _sumToday(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return 0
+  const today = new Date(); today.setHours(0,0,0,0)
+  let sum = 0
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues().forEach(r => {
+    if (!r[0]) return
+    const d = new Date(r[0]); d.setHours(0,0,0,0)
+    if (d.getTime() === today.getTime()) sum += (Number(r[3]) || 0)
+  })
+  return sum
+}
+
+function _weeklyChart(sheetIn, sheetOut) {
+  const days = []
+  const today = new Date(); today.setHours(0,0,0,0)
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today); d.setDate(today.getDate() - i)
+    days.push({ date: Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM'), masuk: 0, keluar: 0 })
+  }
+
+  function fill(sheet, key) {
+    if (!sheet || sheet.getLastRow() < 2) return
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues().forEach(r => {
+      if (!r[0]) return
+      const d = new Date(r[0]); d.setHours(0,0,0,0)
+      const label = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM')
+      const slot = days.find(x => x.date === label)
+      if (slot) slot[key] += (Number(r[3]) || 0)
+    })
+  }
+  fill(sheetIn,  'masuk')
+  fill(sheetOut, 'keluar')
+  return days
 }
 
 // ---- UTIL ----
@@ -278,7 +380,7 @@ function _setupMaster(ss) {
   const headers = [
     'Kode Barcode','Nama Barang','Stok Awal',
     'Total Masuk','Total Keluar','Stok Akhir',
-    'Kadaluarsa','Posisi Rak'
+    'Kadaluarsa','Posisi Rak','Kategori'
   ]
   const hRange = sheet.getRange(1, 1, 1, headers.length)
   hRange.setValues([headers])
@@ -300,6 +402,7 @@ function _setupMaster(ss) {
   sheet.setColumnWidth(6, 100)   // Stok Akhir
   sheet.setColumnWidth(7, 120)   // Kadaluarsa
   sheet.setColumnWidth(8, 160)   // Posisi Rak
+  sheet.setColumnWidth(9, 130)   // Kategori
 
   // ── Format kolom angka ──
   sheet.getRange('C:F').setNumberFormat('#,##0')
@@ -312,7 +415,7 @@ function _setupMaster(ss) {
   hRange.setBorder(true, true, true, true, true, true, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID)
 
   // ── Proteksi header ──
-  const prot = sheet.getRange('A1:H1').protect().setDescription('Header terkunci')
+  const prot = sheet.getRange('A1:I1').protect().setDescription('Header terkunci')
   prot.setWarningOnly(true)
 }
 

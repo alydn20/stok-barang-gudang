@@ -3,7 +3,7 @@ import { ScanLine, CheckCircle2, XCircle, PackagePlus } from 'lucide-react'
 import Scanner from '../components/Scanner'
 import { sheetsApi } from '../services/sheetsApi'
 
-const empty = { barcode: '', nama: '', qty: '', exp: '', posisi: '', catatan: '' }
+const empty = { barcode: '', nama: '', qty: '', exp: '', posisi: '', catatan: '', kategori: '' }
 
 export default function StockIn() {
   const [form, setForm] = useState(empty)
@@ -20,7 +20,7 @@ export default function StockIn() {
     try {
       const res = await sheetsApi.searchByBarcode(barcode)
       if (res.found) {
-        setForm(f => ({ ...f, barcode, nama: res.nama || '', posisi: res.posisi || '' }))
+        setForm(f => ({ ...f, barcode, nama: res.nama || '', posisi: res.posisi || '', kategori: res.kategori || '' }))
         setFound(true)
       } else {
         setFound(false)
@@ -98,10 +98,16 @@ export default function StockIn() {
           <input className="input" value={form.posisi} onChange={e => set('posisi', e.target.value)} placeholder="cth: Rak A baris 2, Lemari Kiri" />
         </div>
 
-        {/* Catatan */}
-        <div>
-          <label className="label">Catatan</label>
-          <input className="input" value={form.catatan} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
+        {/* Kategori & Catatan */}
+        <div style={s.row2}>
+          <div style={{ flex: 1 }}>
+            <label className="label">Kategori</label>
+            <input className="input" value={form.kategori} onChange={e => set('kategori', e.target.value)} placeholder="cth: Makanan, Obat..." />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label className="label">Catatan</label>
+            <input className="input" value={form.catatan} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
+          </div>
         </div>
 
         {status && (
