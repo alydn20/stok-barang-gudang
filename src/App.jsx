@@ -20,34 +20,6 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
       </Routes>
       <Navbar />
-      <div style={credit}>
-        Dibuat oleh&nbsp;<strong>Muhamad Aliyudin</strong>&nbsp;
-        <span style={tag}>PEMULAOLD</span>
-      </div>
     </BrowserRouter>
   )
-}
-
-const credit = {
-  position: 'fixed',
-  bottom: 62,
-  left: 0,
-  right: 0,
-  textAlign: 'center',
-  fontSize: 11,
-  color: '#94A3B8',
-  pointerEvents: 'none',
-  zIndex: 99,
-  letterSpacing: 0.2,
-}
-
-const tag = {
-  display: 'inline-block',
-  background: '#EFF6FF',
-  color: '#2563EB',
-  fontWeight: 700,
-  fontSize: 10,
-  padding: '1px 7px',
-  borderRadius: 99,
-  letterSpacing: 0.5,
 }
