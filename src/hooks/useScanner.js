@@ -1,41 +1,40 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { BrowserMultiFormatReader } from '@zxing/library'
 
 export function useScanner(onDetected) {
   const [scanning, setScanning] = useState(false)
-  const [error, setError] = useState(null)
-  const [cameras, setCameras] = useState([])
-  const [selectedCamera, setSelectedCamera] = useState(null)
-  const videoRef = useRef(null)
+  const [error,    setError]    = useState(null)
+  const videoRef  = useRef(null)
   const readerRef = useRef(null)
 
-  useEffect(() => {
-    readerRef.current = new BrowserMultiFormatReader()
-    readerRef.current.listVideoInputDevices().then((devices) => {
-      setCameras(devices)
-      // Default ke kamera belakang jika ada
-      const back = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('belakang') || d.label.toLowerCase().includes('rear') || d.label.toLowerCase().includes('environment'))
-      setSelectedCamera(back?.deviceId || devices[0]?.deviceId || null)
-    }).catch(() => setError('Tidak bisa mengakses kamera'))
-
-    return () => {
-      readerRef.current?.reset()
-    }
-  }, [])
-
   const startScan = async () => {
-    if (!videoRef.current || !selectedCamera) return
+    if (!videoRef.current) return
     setError(null)
     setScanning(true)
+
+    if (!readerRef.current) {
+      readerRef.current = new BrowserMultiFormatReader()
+    }
+
     try {
-      await readerRef.current.decodeFromVideoDevice(selectedCamera, videoRef.current, (result, err) => {
-        if (result) {
-          onDetected(result.getText())
-          stopScan()
+      // Gunakan facingMode environment (kamera belakang) langsung
+      // Tidak perlu list devices dulu — lebih reliable di mobile
+      await readerRef.current.decodeFromConstraints(
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+        videoRef.current,
+        (result, err) => {
+          if (result) {
+            onDetected(result.getText())
+            stopScan()
+          }
         }
-      })
+      )
     } catch (e) {
-      setError('Gagal memulai scanner: ' + e.message)
+      let msg = 'Gagal mengakses kamera.'
+      if (e.name === 'NotAllowedError')  msg = 'Izin kamera ditolak. Aktifkan izin kamera di pengaturan browser.'
+      if (e.name === 'NotFoundError')    msg = 'Kamera tidak ditemukan pada perangkat ini.'
+      if (e.name === 'NotReadableError') msg = 'Kamera sedang digunakan aplikasi lain.'
+      setError(msg)
       setScanning(false)
     }
   }
@@ -45,5 +44,5 @@ export function useScanner(onDetected) {
     setScanning(false)
   }
 
-  return { videoRef, scanning, error, cameras, selectedCamera, setSelectedCamera, startScan, stopScan }
+  return { videoRef, scanning, error, startScan, stopScan }
 }
