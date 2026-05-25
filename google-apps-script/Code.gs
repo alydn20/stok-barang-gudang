@@ -211,3 +211,198 @@ function formatTgl(val) {
     return Utilities.formatDate(new Date(val), Session.getScriptTimeZone(), 'yyyy-MM-dd')
   } catch { return val.toString() }
 }
+
+// ============================================================
+// SETUP TEMPLATE — jalankan SEKALI dari menu atau Run button
+// Membuat header, warna, lebar kolom, freeze, dan format
+// ============================================================
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('⚙️ Stok Gudang')
+    .addItem('Setup Template (jalankan sekali)', 'setupSpreadsheet')
+    .addItem('Refresh Conditional Formatting', 'applyConditionalFormatting')
+    .addToUi()
+}
+
+function setupSpreadsheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet()
+  ss.setSpreadsheetTimeZone('Asia/Jakarta')
+
+  _setupMaster(ss)
+  _setupMasuk(ss)
+  _setupKeluar(ss)
+
+  // Urutkan tab
+  const order = [SHEET_MASTER, SHEET_MASUK, SHEET_KELUAR]
+  order.forEach((name, i) => {
+    const s = ss.getSheetByName(name)
+    if (s) ss.setActiveSheet(s), ss.moveActiveSheet(i + 1)
+  })
+
+  ss.getSheetByName(SHEET_MASTER).activate()
+  SpreadsheetApp.getUi().alert('✅ Template berhasil diterapkan!')
+}
+
+// ---- MASTER STOK ----
+
+function _setupMaster(ss) {
+  let sheet = ss.getSheetByName(SHEET_MASTER)
+  if (!sheet) sheet = ss.insertSheet(SHEET_MASTER)
+
+  sheet.clear()
+  sheet.clearConditionalFormatRules()
+
+  // ── Header ──
+  const headers = [
+    'Kode Barcode','Nama Barang','Stok Awal',
+    'Total Masuk','Total Keluar','Stok Akhir',
+    'Kadaluarsa','Posisi Rak'
+  ]
+  const hRange = sheet.getRange(1, 1, 1, headers.length)
+  hRange.setValues([headers])
+       .setBackground('#1E3A5F')
+       .setFontColor('#FFFFFF')
+       .setFontWeight('bold')
+       .setFontSize(11)
+       .setHorizontalAlignment('center')
+       .setVerticalAlignment('middle')
+  sheet.setRowHeight(1, 38)
+  sheet.setFrozenRows(1)
+
+  // ── Lebar kolom ──
+  sheet.setColumnWidth(1, 150)   // Kode
+  sheet.setColumnWidth(2, 220)   // Nama
+  sheet.setColumnWidth(3, 90)    // Stok Awal
+  sheet.setColumnWidth(4, 110)   // Total Masuk
+  sheet.setColumnWidth(5, 110)   // Total Keluar
+  sheet.setColumnWidth(6, 100)   // Stok Akhir
+  sheet.setColumnWidth(7, 120)   // Kadaluarsa
+  sheet.setColumnWidth(8, 160)   // Posisi Rak
+
+  // ── Format kolom angka ──
+  sheet.getRange('C:F').setNumberFormat('#,##0')
+  sheet.getRange('G:G').setNumberFormat('dd MMM yyyy')
+
+  // ── Conditional formatting ──
+  applyConditionalFormatting()
+
+  // ── Border header ──
+  hRange.setBorder(true, true, true, true, true, true, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID)
+
+  // ── Proteksi header ──
+  const prot = sheet.getRange('A1:H1').protect().setDescription('Header terkunci')
+  prot.setWarningOnly(true)
+}
+
+function applyConditionalFormatting() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
+  if (!sheet) return
+  sheet.clearConditionalFormatRules()
+  const rules = []
+  const maxRow = 500
+
+  // Stok Akhir ≤ 3 → merah muda (kolom F)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberLessThanOrEqualTo(3)
+    .setBackground('#FEE2E2').setFontColor('#991B1B').setBold(true)
+    .setRanges([sheet.getRange(`F2:F${maxRow}`)])
+    .build())
+
+  // Stok Akhir 4–10 → kuning (kolom F)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberBetween(4, 10)
+    .setBackground('#FEF9C3').setFontColor('#854D0E')
+    .setRanges([sheet.getRange(`F2:F${maxRow}`)])
+    .build())
+
+  // Kadaluarsa sudah lewat → abu (kolom G)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenDateBefore(SpreadsheetApp.RelativeDate.TODAY)
+    .setBackground('#F1F5F9').setFontColor('#94A3B8').setStrikethrough(true)
+    .setRanges([sheet.getRange(`G2:G${maxRow}`)])
+    .build())
+
+  // Kadaluarsa dalam 30 hari → oranye (kolom G)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied(`=AND(G2>=TODAY(), G2<=TODAY()+30)`)
+    .setBackground('#FFF7ED').setFontColor('#C2410C').setBold(true)
+    .setRanges([sheet.getRange(`G2:G${maxRow}`)])
+    .build())
+
+  sheet.setConditionalFormatRules(rules)
+}
+
+// ---- BARANG MASUK ----
+
+function _setupMasuk(ss) {
+  let sheet = ss.getSheetByName(SHEET_MASUK)
+  if (!sheet) sheet = ss.insertSheet(SHEET_MASUK)
+  sheet.clear()
+
+  const headers = ['Tanggal & Waktu','Kode Barcode','Nama Barang','Qty Masuk','Keterangan']
+  const hRange  = sheet.getRange(1, 1, 1, headers.length)
+  hRange.setValues([headers])
+       .setBackground('#14532D')
+       .setFontColor('#FFFFFF')
+       .setFontWeight('bold')
+       .setFontSize(11)
+       .setHorizontalAlignment('center')
+       .setVerticalAlignment('middle')
+  sheet.setRowHeight(1, 38)
+  sheet.setFrozenRows(1)
+
+  sheet.setColumnWidth(1, 160)
+  sheet.setColumnWidth(2, 150)
+  sheet.setColumnWidth(3, 220)
+  sheet.setColumnWidth(4, 90)
+  sheet.setColumnWidth(5, 200)
+
+  sheet.getRange('A:A').setNumberFormat('dd MMM yyyy HH:mm')
+  sheet.getRange('D:D').setNumberFormat('#,##0')
+
+  // Alternating row color via banding
+  const dataRange = sheet.getRange(1, 1, 500, 5)
+  try {
+    const banding = dataRange.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
+    banding.setHeaderRowColor('#14532D')
+    banding.setFirstRowColor('#F0FDF4')
+    banding.setSecondRowColor('#FFFFFF')
+  } catch(e) {}
+}
+
+// ---- BARANG KELUAR ----
+
+function _setupKeluar(ss) {
+  let sheet = ss.getSheetByName(SHEET_KELUAR)
+  if (!sheet) sheet = ss.insertSheet(SHEET_KELUAR)
+  sheet.clear()
+
+  const headers = ['Tanggal & Waktu','Kode Barcode','Nama Barang','Qty Keluar','Keterangan']
+  const hRange  = sheet.getRange(1, 1, 1, headers.length)
+  hRange.setValues([headers])
+       .setBackground('#7F1D1D')
+       .setFontColor('#FFFFFF')
+       .setFontWeight('bold')
+       .setFontSize(11)
+       .setHorizontalAlignment('center')
+       .setVerticalAlignment('middle')
+  sheet.setRowHeight(1, 38)
+  sheet.setFrozenRows(1)
+
+  sheet.setColumnWidth(1, 160)
+  sheet.setColumnWidth(2, 150)
+  sheet.setColumnWidth(3, 220)
+  sheet.setColumnWidth(4, 90)
+  sheet.setColumnWidth(5, 200)
+
+  sheet.getRange('A:A').setNumberFormat('dd MMM yyyy HH:mm')
+  sheet.getRange('D:D').setNumberFormat('#,##0')
+
+  try {
+    const banding = sheet.getRange(1, 1, 500, 5).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
+    banding.setHeaderRowColor('#7F1D1D')
+    banding.setFirstRowColor('#FFF1F2')
+    banding.setSecondRowColor('#FFFFFF')
+  } catch(e) {}
+}
