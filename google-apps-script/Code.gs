@@ -190,6 +190,7 @@ function stockOut(data) {
     tanggal ? new Date(tanggal) : new Date(),
     barcode, info.nama || '', Number(qty) || 0, catatan || ''
   ])
+  upsertMaster(barcode, null, null, null, undefined, undefined)
   return { success: true }
 }
 
@@ -215,7 +216,7 @@ function upsertMaster(barcode, nama, exp, posisi, stokAwal, kategori) {
         if (exp !== undefined && exp) sheet.getRange(row, 7).setValue(exp)
         if (posisi)                  sheet.getRange(row, 8).setValue(posisi)
         if (kategori !== undefined)  sheet.getRange(row, 9).setValue(kategori || '')
-        _applyRowFormulas(sheet, row)
+        _updateRowTotals(sheet, barcode.toString().trim(), row)
         return { success: true }
       }
     }
@@ -224,27 +225,36 @@ function upsertMaster(barcode, nama, exp, posisi, stokAwal, kategori) {
   const newRow = sheet.getLastRow() + 1
   sheet.appendRow([
     barcode, nama || 'BARANG BARU', stokAwal !== undefined ? stokAwal : 0,
-    '', '', '', exp || '', posisi || '', kategori || ''
+    0, 0, stokAwal !== undefined ? stokAwal : 0, exp || '', posisi || '', kategori || ''
   ])
-  _applyRowFormulas(sheet, newRow)
+  _updateRowTotals(sheet, barcode.toString().trim(), newRow)
   return { success: true }
 }
 
-function _applyRowFormulas(sheet, row) {
-  sheet.getRange(row, 4).setFormula(`=SUMIF(Barang_Masuk!$B:$B,A${row},Barang_Masuk!$D:$D)`)
-  sheet.getRange(row, 5).setFormula(`=SUMIF(Barang_Keluar!$B:$B,A${row},Barang_Keluar!$D:$D)`)
-  sheet.getRange(row, 6).setFormula(`=C${row}+D${row}-E${row}`)
+function _updateRowTotals(sheet, barcode, row) {
+  const ss        = SpreadsheetApp.getActiveSpreadsheet()
+  const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
+  const stokAwal  = Number(sheet.getRange(row, 3).getValue()) || 0
+  const masuk     = totMasuk[barcode]  || 0
+  const keluar    = totKeluar[barcode] || 0
+  sheet.getRange(row, 4).setValue(masuk)
+  sheet.getRange(row, 5).setValue(keluar)
+  sheet.getRange(row, 6).setValue(stokAwal + masuk - keluar)
 }
 
-// Jalankan dari menu untuk mengisi formula di semua baris yang sudah ada
+// Jalankan dari menu untuk refresh semua baris
 function refreshAllFormulas() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
+  const ss    = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet = ss.getSheetByName(SHEET_MASTER)
   if (!sheet || sheet.getLastRow() < 2) return
   const lastRow = sheet.getLastRow()
-  for (let row = 2; row <= lastRow; row++) {
-    _applyRowFormulas(sheet, row)
+  const kodes   = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
+  for (let i = 0; i < kodes.length; i++) {
+    const bc = kodes[i][0].toString().trim()
+    if (bc) _updateRowTotals(sheet, bc, i + 2)
   }
-  SpreadsheetApp.getUi().alert(`✅ Formula diperbarui untuk ${lastRow - 1} baris.`)
+  SpreadsheetApp.getUi().alert(`✅ Total stok diperbarui untuk ${lastRow - 1} baris.`)
 }
 
 // ---- DELETE ITEM ----
