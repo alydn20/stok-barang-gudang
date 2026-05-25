@@ -133,15 +133,17 @@ export default function Settings() {
       <div className="card" style={s.card}>
         <div style={s.cardHeader}><Info size={18} color="#64748B" /><h3 style={s.cardTitle}>Tentang</h3></div>
         {[
-          ['Versi',    '1.0.0'],
-          ['Platform', 'React + Vite'],
-          ['Database', 'Google Sheets'],
+          ['Versi',      '1.0.0'],
+          ['Platform',   'React + Vite'],
+          ['Database',   'Google Sheets'],
+          ['Dibuat oleh','Muhamad Aliyudin'],
         ].map(([l, v], i, a) => (
-          <div key={l} style={{ ...s.aboutRow, border: i === a.length - 1 ? 'none' : undefined }}>
+          <div key={l} style={{ ...s.aboutRow, borderBottom: i === a.length - 1 ? 'none' : '1px solid #F1F5F9' }}>
             <span style={s.aboutLabel}>{l}</span>
-            <span style={s.aboutVal}>{v}</span>
+            <span style={l === 'Dibuat oleh' ? s.aboutCredit : s.aboutVal}>{v}</span>
           </div>
         ))}
+        <div style={s.creditTag}>PEMULAOLD</div>
       </div>
 
       </div>
@@ -158,7 +160,9 @@ const s = {
   cardTitle:   { fontSize: 15, fontWeight: 700, color: '#1E293B' },
   loadingRow:  { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0', color: '#64748B', fontSize: 13 },
   sourceBadge: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, marginBottom: 4 },
-  aboutRow:    { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F1F5F9' },
+  aboutRow:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' },
   aboutLabel:  { fontSize: 13, color: '#64748B' },
   aboutVal:    { fontSize: 13, fontWeight: 600, color: '#1E293B', textAlign: 'right' },
+  aboutCredit: { fontSize: 13, fontWeight: 700, color: '#2563EB' },
+  creditTag:   { marginTop: 10, display: 'inline-block', background: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontSize: 11, padding: '3px 12px', borderRadius: 99, letterSpacing: 0.5 },
 }

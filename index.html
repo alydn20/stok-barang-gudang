@@ -17,12 +17,12 @@
 
       #credit {
         position: fixed;
-        bottom: 62px;
+        bottom: calc(62px + env(safe-area-inset-bottom));
         left: 0;
         right: 0;
         overflow: hidden;
         pointer-events: none;
-        z-index: 99;
+        z-index: 101;
         height: 20px;
         display: flex;
         align-items: center;
