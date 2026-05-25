@@ -215,16 +215,36 @@ function upsertMaster(barcode, nama, exp, posisi, stokAwal, kategori) {
         if (exp !== undefined && exp) sheet.getRange(row, 7).setValue(exp)
         if (posisi)                  sheet.getRange(row, 8).setValue(posisi)
         if (kategori !== undefined)  sheet.getRange(row, 9).setValue(kategori || '')
+        _applyRowFormulas(sheet, row)
         return { success: true }
       }
     }
   }
 
+  const newRow = sheet.getLastRow() + 1
   sheet.appendRow([
     barcode, nama || 'BARANG BARU', stokAwal !== undefined ? stokAwal : 0,
     '', '', '', exp || '', posisi || '', kategori || ''
   ])
+  _applyRowFormulas(sheet, newRow)
   return { success: true }
+}
+
+function _applyRowFormulas(sheet, row) {
+  sheet.getRange(row, 4).setFormula(`=SUMIF(Barang_Masuk!$B:$B,A${row},Barang_Masuk!$D:$D)`)
+  sheet.getRange(row, 5).setFormula(`=SUMIF(Barang_Keluar!$B:$B,A${row},Barang_Keluar!$D:$D)`)
+  sheet.getRange(row, 6).setFormula(`=C${row}+D${row}-E${row}`)
+}
+
+// Jalankan dari menu untuk mengisi formula di semua baris yang sudah ada
+function refreshAllFormulas() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
+  if (!sheet || sheet.getLastRow() < 2) return
+  const lastRow = sheet.getLastRow()
+  for (let row = 2; row <= lastRow; row++) {
+    _applyRowFormulas(sheet, row)
+  }
+  SpreadsheetApp.getUi().alert(`✅ Formula diperbarui untuk ${lastRow - 1} baris.`)
 }
 
 // ---- DELETE ITEM ----
@@ -344,6 +364,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚙️ Stok Gudang')
     .addItem('Setup Template (jalankan sekali)', 'setupSpreadsheet')
+    .addItem('Refresh Semua Formula (D/E/F)', 'refreshAllFormulas')
     .addItem('Refresh Conditional Formatting', 'applyConditionalFormatting')
     .addToUi()
 }
