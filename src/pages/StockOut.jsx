@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ScanLine, CheckCircle2, XCircle, PackageMinus, MapPin, Package, Calendar } from 'lucide-react'
+import { ScanLine, CheckCircle2, XCircle, PackageMinus, MapPin, Package, Calendar, Loader2 } from 'lucide-react'
 import Scanner from '../components/Scanner'
 import { sheetsApi } from '../services/sheetsApi'
 
@@ -8,20 +8,30 @@ export default function StockOut() {
   const [itemInfo, setItemInfo] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [searching, setSearching] = useState(false)
   const [status, setStatus] = useState(null)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const handleBarcodeScan = async (barcode) => {
-    setShowScanner(false)
-    set('barcode', barcode)
-    setItemInfo(null); setStatus(null)
+  const lookupBarcode = async (barcode) => {
+    if (!barcode.trim()) return
+    setSearching(true); setItemInfo(null); setStatus(null)
     try {
-      const res = await sheetsApi.searchByBarcode(barcode)
+      const res = await sheetsApi.searchByBarcode(barcode.trim())
       if (res.found) setItemInfo(res)
       else setStatus({ type: 'error', msg: 'Barang tidak ditemukan di database.' })
     } catch (e) { setStatus({ type: 'error', msg: e.message }) }
+    finally { setSearching(false) }
   }
+
+  const handleBarcodeScan = async (barcode) => {
+    setShowScanner(false)
+    setForm(f => ({ ...f, barcode }))
+    await lookupBarcode(barcode)
+  }
+
+  const handleBarcodeBlur  = () => { if (form.barcode.trim()) lookupBarcode(form.barcode) }
+  const handleBarcodeKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); lookupBarcode(form.barcode) } }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -58,8 +68,10 @@ export default function StockOut() {
             <input
               className="input"
               value={form.barcode}
-              onChange={e => { set('barcode', e.target.value); setItemInfo(null) }}
-              placeholder="Scan atau ketik barcode"
+              onChange={e => { set('barcode', e.target.value); setItemInfo(null); setStatus(null) }}
+              onBlur={handleBarcodeBlur}
+              onKeyDown={handleBarcodeKeyDown}
+              placeholder="Scan atau ketik barcode, lalu Enter"
               required
             />
             <button type="button" onClick={() => setShowScanner(true)} className="btn-icon" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10 }}>
@@ -67,6 +79,10 @@ export default function StockOut() {
             </button>
           </div>
         </div>
+
+        {searching && (
+          <p style={s.searchNote}><Loader2 size={13} className="spin" /> Mencari data barang...</p>
+        )}
 
         {/* Info box when item found */}
         {itemInfo && (
@@ -124,7 +140,8 @@ const s = {
   title: { fontSize: 20, fontWeight: 700, color: '#0F172A' },
   form: { display: 'flex', flexDirection: 'column', gap: 14 },
   barcodeRow: { display: 'flex', gap: 8 },
-  req: { color: '#DC2626', fontWeight: 700 },
+  req:        { color: '#DC2626', fontWeight: 700 },
+  searchNote: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748B', marginTop: 4 },
   infoBox: {
     background: '#EFF6FF', border: '1.5px solid #BFDBFE',
     borderRadius: 10, padding: '12px 14px',

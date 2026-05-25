@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ScanLine, CheckCircle2, XCircle, PackagePlus } from 'lucide-react'
+import { ScanLine, CheckCircle2, XCircle, PackagePlus, Loader2 } from 'lucide-react'
 import Scanner from '../components/Scanner'
 import { sheetsApi } from '../services/sheetsApi'
 
@@ -9,23 +9,46 @@ export default function StockIn() {
   const [form, setForm] = useState(empty)
   const [showScanner, setShowScanner] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [searching, setSearching] = useState(false)
   const [status, setStatus] = useState(null)
-  const [found, setFound] = useState(false)
+  const [found, setFound] = useState(null) // null=belum cari, true=ada, false=tidak ada
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const handleBarcodeScan = async (barcode) => {
-    setShowScanner(false)
-    set('barcode', barcode)
+  const lookupBarcode = async (barcode) => {
+    if (!barcode.trim()) return
+    setSearching(true); setFound(null)
     try {
-      const res = await sheetsApi.searchByBarcode(barcode)
+      const res = await sheetsApi.searchByBarcode(barcode.trim())
       if (res.found) {
-        setForm(f => ({ ...f, barcode, nama: res.nama || '', posisi: res.posisi || '', kategori: res.kategori || '' }))
+        setForm(f => ({
+          ...f,
+          barcode: barcode.trim(),
+          nama:     res.nama     || f.nama,
+          posisi:   res.posisi   || f.posisi,
+          kategori: res.kategori || f.kategori,
+          exp:      res.exp      || f.exp,
+        }))
         setFound(true)
       } else {
         setFound(false)
       }
     } catch { setFound(false) }
+    finally { setSearching(false) }
+  }
+
+  const handleBarcodeScan = async (barcode) => {
+    setShowScanner(false)
+    setForm(f => ({ ...f, barcode }))
+    await lookupBarcode(barcode)
+  }
+
+  const handleBarcodeBlur = () => {
+    if (form.barcode.trim()) lookupBarcode(form.barcode)
+  }
+
+  const handleBarcodeKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); lookupBarcode(form.barcode) }
   }
 
   const handleSubmit = async (e) => {
@@ -63,15 +86,25 @@ export default function StockIn() {
             <input
               className="input"
               value={form.barcode}
-              onChange={e => { set('barcode', e.target.value); setFound(false) }}
-              placeholder="Scan atau ketik barcode"
+              onChange={e => { set('barcode', e.target.value); setFound(null) }}
+              onBlur={handleBarcodeBlur}
+              onKeyDown={handleBarcodeKeyDown}
+              placeholder="Scan atau ketik barcode, lalu Enter"
               required
             />
             <button type="button" onClick={() => setShowScanner(true)} className="btn-icon" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10 }}>
               <ScanLine size={20} />
             </button>
           </div>
-          {found && <p style={s.foundNote}><CheckCircle2 size={13} /> Data barang ditemukan</p>}
+          {searching && (
+            <p style={s.searchNote}><Loader2 size={13} className="spin" /> Mencari data barang...</p>
+          )}
+          {!searching && found === true && (
+            <p style={s.foundNote}><CheckCircle2 size={13} /> Data barang ditemukan, form otomatis terisi</p>
+          )}
+          {!searching && found === false && (
+            <p style={s.notFoundNote}><XCircle size={13} /> Barang baru — isi data di bawah</p>
+          )}
         </div>
 
         {/* Nama */}
@@ -134,5 +167,7 @@ const s = {
   barcodeRow: { display: 'flex', gap: 8, alignItems: 'flex-start' },
   row2: { display: 'flex', gap: 12 },
   required: { color: '#DC2626', fontWeight: 700 },
-  foundNote: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#16A34A', marginTop: 5 },
+  foundNote:    { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#16A34A', marginTop: 5 },
+  notFoundNote: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#D97706', marginTop: 5 },
+  searchNote:   { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748B', marginTop: 5 },
 }
