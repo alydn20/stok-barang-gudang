@@ -1,18 +1,32 @@
-// URL bersumber dari environment variable Vercel (VITE_GAS_URL)
-// Semua device otomatis pakai URL yang sama tanpa konfigurasi per-browser
-const GAS_URL = import.meta.env.VITE_GAS_URL || ''
+// GAS URL diambil dari server (/api/config) saat pertama kali dipakai
+// Fallback ke build-time env var jika server tidak tersedia
+let _url = null
+
+async function getUrl() {
+  if (_url) return _url
+  try {
+    const res = await fetch('/api/config')
+    if (res.ok) {
+      const data = await res.json()
+      if (data.gasUrl) { _url = data.gasUrl; return _url }
+    }
+  } catch {}
+  _url = import.meta.env.VITE_GAS_URL || ''
+  return _url
+}
 
 async function callGAS(action, params = {}) {
-  if (!GAS_URL) throw new Error('GAS_URL belum dikonfigurasi. Hubungi admin.')
-  const qs = new URLSearchParams({ action, ...params })
-  const res = await fetch(`${GAS_URL}?${qs}`)
+  const url = await getUrl()
+  if (!url) throw new Error('URL Google Apps Script belum dikonfigurasi. Buka halaman Setelan.')
+  const res = await fetch(`${url}?${new URLSearchParams({ action, ...params })}`)
   if (!res.ok) throw new Error(`HTTP error ${res.status}`)
   return res.json()
 }
 
 async function postGAS(action, data) {
-  if (!GAS_URL) throw new Error('GAS_URL belum dikonfigurasi. Hubungi admin.')
-  const res = await fetch(GAS_URL, {
+  const url = await getUrl()
+  if (!url) throw new Error('URL Google Apps Script belum dikonfigurasi. Buka halaman Setelan.')
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action, ...data }),
@@ -30,5 +44,6 @@ export const sheetsApi = {
   updateItem:      (data)    => postGAS('updateItem', data),
   addItem:         (data)    => postGAS('addItem', data),
 
-  isConfigured: () => Boolean(GAS_URL),
+  // Reset cache supaya URL terbaru langsung dipakai setelah save
+  resetCache: () => { _url = null },
 }
