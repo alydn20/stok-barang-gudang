@@ -95,11 +95,18 @@ export default function Settings() {
             <textarea
               className="input"
               value={gasUrl}
-              onChange={e => { setGasUrl(e.target.value); setSaveResult(null); setTestResult(null) }}
+              onChange={e => { if (source !== 'server') { setGasUrl(e.target.value); setSaveResult(null); setTestResult(null) } }}
               placeholder="https://script.google.com/macros/s/.../exec"
               rows={3}
-              style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 13 }}
+              readOnly={source === 'server'}
+              style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 13, opacity: source === 'server' ? 0.7 : 1, cursor: source === 'server' ? 'not-allowed' : 'text' }}
             />
+
+            {source === 'server' && (
+              <div style={{ fontSize: 12, color: '#64748B', marginTop: 6, lineHeight: 1.6 }}>
+                URL dikunci dari server. Untuk mengubah: buka <strong>Vercel → Settings → Environments → Production</strong> → edit variabel <code style={{ background: '#F1F5F9', padding: '1px 5px', borderRadius: 4 }}>GAS_URL</code> → Redeploy.
+              </div>
+            )}
 
             {(saveResult || testResult) && (
               <div className={`alert ${(saveResult || testResult).ok ? 'alert-success' : 'alert-danger'} fade-in`} style={{ marginTop: 10 }}>
@@ -112,9 +119,11 @@ export default function Settings() {
               <button onClick={handleTest} disabled={testing || !gasUrl.trim()} className="btn btn-ghost" style={{ flex: 1 }}>
                 {testing ? <><Loader2 size={15} className="spin" /> Menguji...</> : <><Wifi size={15} /> Test Koneksi</>}
               </button>
-              <button onClick={handleSave} disabled={!gasUrl.trim()} className="btn btn-primary" style={{ flex: 1 }}>
-                <Save size={15} /> Simpan
-              </button>
+              {source !== 'server' && (
+                <button onClick={handleSave} disabled={!gasUrl.trim()} className="btn btn-primary" style={{ flex: 1 }}>
+                  <Save size={15} /> Simpan
+                </button>
+              )}
             </div>
           </>
         )}
