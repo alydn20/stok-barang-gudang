@@ -51,21 +51,40 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON)
 }
 
+// ---- HELPER: hitung total per barcode dari sheet transaksi ----
+
+function _sumByBarcode(sheet) {
+  const result = {}
+  if (!sheet || sheet.getLastRow() < 2) return result
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues()
+    .forEach(r => {
+      const bc = r[1].toString().trim()
+      if (bc) result[bc] = (result[bc] || 0) + (Number(r[3]) || 0)
+    })
+  return result
+}
+
 // ---- SEARCH ----
 
 function searchByBarcode(barcode) {
   if (!barcode) return { found: false }
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
+  const ss     = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet  = ss.getSheetByName(SHEET_MASTER)
   if (!sheet || sheet.getLastRow() < 2) return { found: false }
+
+  const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
 
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues()
   for (const r of data) {
     if (r[0].toString().trim() === barcode.toString().trim()) {
+      const bc  = r[0].toString()
+      const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
       return {
         found:   true,
-        barcode: r[0].toString(),
+        barcode: bc,
         nama:    r[1].toString(),
-        qty:     r[5].toString(),   // kolom F: Stok Akhir (hasil formula)
+        qty:     qty.toString(),
         exp:     r[6] ? formatTgl(r[6]) : '',
         posisi:  r[7].toString(),
       }
@@ -77,19 +96,26 @@ function searchByBarcode(barcode) {
 // ---- ALL STOCK ----
 
 function getAllStock() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
+  const ss     = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet  = ss.getSheetByName(SHEET_MASTER)
   if (!sheet || sheet.getLastRow() < 2) return { items: [] }
 
-  const data  = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues()
-  const items = data
+  const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
+
+  const items = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues()
     .filter(r => r[0])
-    .map(r => ({
-      barcode: r[0].toString(),
-      nama:    r[1].toString(),
-      qty:     r[5].toString(),
-      exp:     r[6] ? formatTgl(r[6]) : '',
-      posisi:  r[7].toString(),
-    }))
+    .map(r => {
+      const bc  = r[0].toString()
+      const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
+      return {
+        barcode: bc,
+        nama:    r[1].toString(),
+        qty:     qty.toString(),
+        exp:     r[6] ? formatTgl(r[6]) : '',
+        posisi:  r[7].toString(),
+      }
+    })
   return { items }
 }
 
@@ -191,16 +217,11 @@ function upsertMaster(barcode, nama, exp, posisi, stokAwal) {
     }
   }
 
-  // Barang baru — tambah baris + pasang formula SUMIF
-  const nextRow = sheet.getLastRow() + 1
+  // Barang baru — tambah baris (stok dihitung dari transaksi, bukan formula)
   sheet.appendRow([
     barcode, nama || 'BARANG BARU', stokAwal !== undefined ? stokAwal : 0,
     '', '', '', exp || '', posisi || ''
   ])
-  sheet.getRange(nextRow, 4).setFormula(`=SUMIF(${SHEET_MASUK}!B:B,A${nextRow},${SHEET_MASUK}!D:D)`)
-  sheet.getRange(nextRow, 5).setFormula(`=SUMIF(${SHEET_KELUAR}!B:B,A${nextRow},${SHEET_KELUAR}!D:D)`)
-  sheet.getRange(nextRow, 6).setFormula(`=C${nextRow}+D${nextRow}-E${nextRow}`)
-
   return { success: true }
 }
 
