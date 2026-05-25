@@ -90,17 +90,26 @@ export default function StockIn() {
               onBlur={handleBarcodeBlur}
               onKeyDown={handleBarcodeKeyDown}
               placeholder="Scan atau ketik barcode, lalu Enter"
+              readOnly={found === true}
+              style={found === true ? s.inputLocked : {}}
               required
             />
-            <button type="button" onClick={() => setShowScanner(true)} className="btn-icon" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10 }}>
-              <ScanLine size={20} />
-            </button>
+            {found !== true && (
+              <button type="button" onClick={() => setShowScanner(true)} className="btn-icon" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10 }}>
+                <ScanLine size={20} />
+              </button>
+            )}
+            {found === true && (
+              <button type="button" onClick={() => { setForm(empty); setFound(null) }} style={s.clearBtn} title="Ganti barang">
+                <XCircle size={18} color="#DC2626" />
+              </button>
+            )}
           </div>
           {searching && (
             <p style={s.searchNote}><Loader2 size={13} className="spin" /> Mencari data barang...</p>
           )}
           {!searching && found === true && (
-            <p style={s.foundNote}><CheckCircle2 size={13} /> Data barang ditemukan, form otomatis terisi</p>
+            <p style={s.foundNote}><CheckCircle2 size={13} /> Barang ditemukan — kode & nama tidak bisa diubah</p>
           )}
           {!searching && found === false && (
             <p style={s.notFoundNote}><XCircle size={13} /> Barang baru — isi data di bawah</p>
@@ -110,7 +119,15 @@ export default function StockIn() {
         {/* Nama */}
         <div>
           <label className="label">Nama Barang <span style={s.required}>*</span></label>
-          <input className="input" value={form.nama} onChange={e => set('nama', e.target.value)} placeholder="Nama produk" required />
+          <input
+            className="input"
+            value={form.nama}
+            onChange={e => set('nama', e.target.value)}
+            placeholder="Nama produk"
+            readOnly={found === true}
+            style={found === true ? s.inputLocked : {}}
+            required
+          />
         </div>
 
         {/* Qty & Exp */}
@@ -170,4 +187,6 @@ const s = {
   foundNote:    { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#16A34A', marginTop: 5 },
   notFoundNote: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#D97706', marginTop: 5 },
   searchNote:   { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748B', marginTop: 5 },
+  inputLocked:  { background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' },
+  clearBtn:     { flexShrink: 0, width: 44, height: 44, borderRadius: 10, background: '#FEF2F2', border: '1.5px solid #FECACA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 }
