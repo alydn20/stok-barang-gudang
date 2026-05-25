@@ -22,7 +22,7 @@ function doGet(e) {
     else if (action === 'search')     result = searchByBarcode(e.parameter.barcode)
     else if (action === 'getAllStock') result = getAllStock()
     else if (action === 'getHistory') result = getHistory(e.parameter.barcode)
-    else if (action === 'getStats')   result = getStats()
+    else if (action === 'getStats')   result = getStats(e.parameter)
     else                              result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
@@ -283,11 +283,13 @@ function deleteItem(data) {
 
 // ---- STATS ----
 
-function getStats() {
+function getStats(params) {
   const ss      = SpreadsheetApp.getActiveSpreadsheet()
   const sheet   = ss.getSheetByName(SHEET_MASTER)
   const sheetIn = ss.getSheetByName(SHEET_MASUK)
   const sheetOut= ss.getSheetByName(SHEET_KELUAR)
+  const startDate = params && params.startDate ? new Date(params.startDate) : null
+  const endDate   = params && params.endDate   ? new Date(params.endDate)   : null
 
   const totMasuk  = _sumByBarcode(sheetIn)
   const totKeluar = _sumByBarcode(sheetOut)
@@ -320,7 +322,7 @@ function getStats() {
     expired,
     todayMasuk:  _sumToday(sheetIn),
     todayKeluar: _sumToday(sheetOut),
-    weeklyChart: _weeklyChart(sheetIn, sheetOut),
+    weeklyChart: _weeklyChart(sheetIn, sheetOut, startDate, endDate),
   }
 }
 
@@ -336,12 +338,23 @@ function _sumToday(sheet) {
   return sum
 }
 
-function _weeklyChart(sheetIn, sheetOut) {
+function _weeklyChart(sheetIn, sheetOut, startDate, endDate) {
+  const tz    = Session.getScriptTimeZone()
+  const end   = endDate   ? new Date(endDate)   : new Date()
+  const start = startDate ? new Date(startDate) : new Date(end)
+  end.setHours(23,59,59,999)
+  if (!startDate) start.setDate(end.getDate() - 6)
+  start.setHours(0,0,0,0)
+
+  // Batasi maksimal 31 hari agar tidak terlalu banyak bar
+  const diffDays = Math.round((end - start) / 86400000)
+  if (diffDays > 31) start.setTime(end.getTime() - 31 * 86400000)
+
   const days = []
-  const today = new Date(); today.setHours(0,0,0,0)
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today); d.setDate(today.getDate() - i)
-    days.push({ date: Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM'), masuk: 0, keluar: 0 })
+  const cur = new Date(start)
+  while (cur <= end) {
+    days.push({ date: Utilities.formatDate(new Date(cur), tz, 'dd/MM'), masuk: 0, keluar: 0 })
+    cur.setDate(cur.getDate() + 1)
   }
 
   function fill(sheet, key) {
@@ -349,7 +362,8 @@ function _weeklyChart(sheetIn, sheetOut) {
     sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues().forEach(r => {
       if (!r[0]) return
       const d = new Date(r[0]); d.setHours(0,0,0,0)
-      const label = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM')
+      if (d < start || d > end) return
+      const label = Utilities.formatDate(d, tz, 'dd/MM')
       const slot = days.find(x => x.date === label)
       if (slot) slot[key] += (Number(r[3]) || 0)
     })

@@ -47,7 +47,7 @@ export const sheetsApi = {
   searchByBarcode: (barcode)      => callGAS('search', { barcode }),
   getAllStock:      ()             => callGAS('getAllStock'),
   getHistory:      (barcode = '') => callGAS('getHistory', barcode ? { barcode } : {}),
-  getStats:        ()             => callGAS('getStats'),
+  getStats:        (params = {})  => callGAS('getStats', params),
   stockIn:         (data)         => postGAS('stockIn', data),
   stockOut:        (data)         => postGAS('stockOut', data),
   updateItem:      (data)         => postGAS('updateItem', data),
