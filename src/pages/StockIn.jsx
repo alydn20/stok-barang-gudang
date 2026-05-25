@@ -1,87 +1,118 @@
 import React, { useState } from 'react'
-import { Barcode, CheckCircle, XCircle } from 'lucide-react'
+import { ScanLine, CheckCircle2, XCircle, PackagePlus } from 'lucide-react'
 import Scanner from '../components/Scanner'
 import { sheetsApi } from '../services/sheetsApi'
 
-const emptyForm = { barcode: '', nama: '', qty: '', exp: '', posisi: '', catatan: '' }
+const empty = { barcode: '', nama: '', qty: '', exp: '', posisi: '', catatan: '' }
 
 export default function StockIn() {
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(empty)
   const [showScanner, setShowScanner] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState(null) // {type: 'success'|'error', msg}
-  const [itemFound, setItemFound] = useState(false)
+  const [status, setStatus] = useState(null)
+  const [found, setFound] = useState(false)
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const handleBarcodeScan = async (barcode) => {
     setShowScanner(false)
-    setForm(f => ({ ...f, barcode }))
-    // Cari info barang dari sheet
+    set('barcode', barcode)
     try {
       const res = await sheetsApi.searchByBarcode(barcode)
       if (res.found) {
         setForm(f => ({ ...f, barcode, nama: res.nama || '', posisi: res.posisi || '' }))
-        setItemFound(true)
+        setFound(true)
       } else {
-        setItemFound(false)
+        setFound(false)
       }
-    } catch { setItemFound(false) }
+    } catch { setFound(false) }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.barcode || !form.qty) return setStatus({ type: 'error', msg: 'Barcode dan Qty wajib diisi' })
-    setLoading(true)
-    setStatus(null)
+    if (!form.barcode || !form.qty) return setStatus({ type: 'error', msg: 'Barcode dan qty wajib diisi.' })
+    setLoading(true); setStatus(null)
     try {
       await sheetsApi.stockIn({ ...form, tanggal: new Date().toISOString() })
-      setStatus({ type: 'success', msg: 'Barang masuk berhasil dicatat!' })
-      setForm(emptyForm)
-      setItemFound(false)
+      setStatus({ type: 'success', msg: 'Barang masuk berhasil disimpan.' })
+      setForm(empty); setFound(false)
     } catch (e) {
       setStatus({ type: 'error', msg: e.message })
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   return (
-    <div style={styles.page}>
-      <h2 style={styles.title}>Barang Masuk</h2>
-
+    <div className="page">
       {showScanner && <Scanner onDetected={handleBarcodeScan} onCancel={() => setShowScanner(false)} />}
 
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <label style={styles.label}>Barcode</label>
-        <div style={styles.barcodeRow}>
-          <input style={styles.input} value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))} placeholder="Scan atau ketik barcode" required />
-          <button type="button" onClick={() => setShowScanner(true)} style={styles.btnScan}>
-            <Barcode size={20} />
-          </button>
+      {/* Page Header */}
+      <div className="page-header">
+        <div style={s.titleRow}>
+          <div style={{ ...s.titleIcon, background: '#F0FDF4' }}>
+            <PackagePlus size={20} color="#16A34A" />
+          </div>
+          <h2 style={s.title}>Barang Masuk</h2>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} style={s.form}>
+        {/* Barcode */}
+        <div>
+          <label className="label">Barcode <span style={s.required}>*</span></label>
+          <div style={s.barcodeRow}>
+            <input
+              className="input"
+              value={form.barcode}
+              onChange={e => { set('barcode', e.target.value); setFound(false) }}
+              placeholder="Scan atau ketik barcode"
+              required
+            />
+            <button type="button" onClick={() => setShowScanner(true)} className="btn-icon" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10 }}>
+              <ScanLine size={20} />
+            </button>
+          </div>
+          {found && <p style={s.foundNote}><CheckCircle2 size={13} /> Data barang ditemukan</p>}
         </div>
 
-        <label style={styles.label}>Nama Barang {itemFound && <span style={styles.badge}>Ditemukan</span>}</label>
-        <input style={styles.input} value={form.nama} onChange={e => setForm(f => ({ ...f, nama: e.target.value }))} placeholder="Nama produk" required />
+        {/* Nama */}
+        <div>
+          <label className="label">Nama Barang <span style={s.required}>*</span></label>
+          <input className="input" value={form.nama} onChange={e => set('nama', e.target.value)} placeholder="Nama produk" required />
+        </div>
 
-        <label style={styles.label}>Qty (pcs)</label>
-        <input style={styles.input} type="number" min="1" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} placeholder="Jumlah" required />
+        {/* Qty & Exp */}
+        <div style={s.row2}>
+          <div style={{ flex: 1 }}>
+            <label className="label">Qty (pcs) <span style={s.required}>*</span></label>
+            <input className="input" type="number" min="1" value={form.qty} onChange={e => set('qty', e.target.value)} placeholder="0" required />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label className="label">Tgl Kadaluarsa</label>
+            <input className="input" type="date" value={form.exp} onChange={e => set('exp', e.target.value)} />
+          </div>
+        </div>
 
-        <label style={styles.label}>Tanggal Kadaluarsa</label>
-        <input style={styles.input} type="date" value={form.exp} onChange={e => setForm(f => ({ ...f, exp: e.target.value }))} />
+        {/* Posisi */}
+        <div>
+          <label className="label">Posisi Rak</label>
+          <input className="input" value={form.posisi} onChange={e => set('posisi', e.target.value)} placeholder="cth: Rak A baris 2, Lemari Kiri" />
+        </div>
 
-        <label style={styles.label}>Posisi Rak</label>
-        <input style={styles.input} value={form.posisi} onChange={e => setForm(f => ({ ...f, posisi: e.target.value }))} placeholder="cth: Rak A baris 2, Lemari Kiri" />
-
-        <label style={styles.label}>Catatan (opsional)</label>
-        <input style={styles.input} value={form.catatan} onChange={e => setForm(f => ({ ...f, catatan: e.target.value }))} placeholder="Catatan tambahan" />
+        {/* Catatan */}
+        <div>
+          <label className="label">Catatan</label>
+          <input className="input" value={form.catatan} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
+        </div>
 
         {status && (
-          <div style={{ ...styles.statusBox, background: status.type === 'success' ? '#e8f5e9' : '#ffebee', color: status.type === 'success' ? '#2e7d32' : '#c62828' }}>
-            {status.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+          <div className={`alert ${status.type === 'success' ? 'alert-success' : 'alert-danger'} fade-in`}>
+            {status.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
             {status.msg}
           </div>
         )}
 
-        <button type="submit" disabled={loading} style={styles.btnSubmit}>
+        <button type="submit" disabled={loading} className="btn btn-success btn-full" style={{ marginTop: 4 }}>
+          <PackagePlus size={18} />
           {loading ? 'Menyimpan...' : 'Simpan Barang Masuk'}
         </button>
       </form>
@@ -89,15 +120,13 @@ export default function StockIn() {
   )
 }
 
-const styles = {
-  page: { padding: '24px 16px 100px', maxWidth: 480, margin: '0 auto' },
-  title: { fontSize: 22, fontWeight: 700, marginBottom: 20, color: '#43a047' },
-  form: { display: 'flex', flexDirection: 'column', gap: 10 },
-  label: { fontSize: 13, fontWeight: 600, color: '#555', display: 'flex', alignItems: 'center', gap: 8 },
-  input: { padding: '10px 14px', border: '1px solid #ddd', borderRadius: 8, fontSize: 15, outline: 'none' },
-  barcodeRow: { display: 'flex', gap: 8 },
-  btnScan: { padding: '10px 14px', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' },
-  btnSubmit: { marginTop: 8, padding: '13px', background: '#43a047', color: '#fff', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer' },
-  statusBox: { padding: '10px 14px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 },
-  badge: { background: '#e8f5e9', color: '#2e7d32', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 },
+const s = {
+  titleRow: { display: 'flex', alignItems: 'center', gap: 10 },
+  titleIcon: { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: 700, color: '#0F172A' },
+  form: { display: 'flex', flexDirection: 'column', gap: 14 },
+  barcodeRow: { display: 'flex', gap: 8, alignItems: 'flex-start' },
+  row2: { display: 'flex', gap: 12 },
+  required: { color: '#DC2626', fontWeight: 700 },
+  foundNote: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#16A34A', marginTop: 5 },
 }

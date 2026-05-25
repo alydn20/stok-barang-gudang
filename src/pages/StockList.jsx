@@ -1,36 +1,33 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, RefreshCw, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Search, MapPin, Calendar, AlertTriangle, Package, Loader2, LayoutList } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
+const FILTERS = [
+  { val: 'all',      label: 'Semua'       },
+  { val: 'low',      label: 'Stok Rendah' },
+  { val: 'expiring', label: 'Segera Exp'  },
+  { val: 'expired',  label: 'Kadaluarsa'  },
+]
+
 export default function StockList() {
-  const [items, setItems] = useState([])
+  const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all') // all | low | expiring | expired
+  const [search,  setSearch]  = useState('')
+  const [filter,  setFilter]  = useState('all')
 
   const load = () => {
     setLoading(true)
     sheetsApi.getAllStock()
-      .then(res => setItems(res.items || []))
+      .then(r => setItems(r.items || []))
       .catch(() => {})
       .finally(() => setLoading(false))
   }
-
   useEffect(() => { load() }, [])
 
   const today = new Date()
-  const soon = new Date(); soon.setDate(today.getDate() + 30)
+  const soon  = new Date(); soon.setDate(today.getDate() + 30)
 
-  const filtered = useMemo(() => {
-    let list = items
-    if (search) list = list.filter(i => i.nama?.toLowerCase().includes(search.toLowerCase()) || i.barcode?.includes(search) || i.posisi?.toLowerCase().includes(search.toLowerCase()))
-    if (filter === 'low') list = list.filter(i => Number(i.qty) <= 3)
-    if (filter === 'expiring') list = list.filter(i => i.exp && new Date(i.exp) <= soon && new Date(i.exp) >= today)
-    if (filter === 'expired') list = list.filter(i => i.exp && new Date(i.exp) < today)
-    return list
-  }, [items, search, filter])
-
-  const getExpStatus = (exp) => {
+  const expStatus = (exp) => {
     if (!exp) return null
     const d = new Date(exp)
     if (d < today) return 'expired'
@@ -38,43 +35,103 @@ export default function StockList() {
     return 'ok'
   }
 
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return items
+      .filter(i => !q || i.nama?.toLowerCase().includes(q) || i.barcode?.includes(q) || i.posisi?.toLowerCase().includes(q))
+      .filter(i => {
+        if (filter === 'low')      return Number(i.qty) <= 3
+        if (filter === 'expiring') return i.exp && new Date(i.exp) <= soon && new Date(i.exp) >= today
+        if (filter === 'expired')  return i.exp && new Date(i.exp) < today
+        return true
+      })
+  }, [items, search, filter])
+
+  const accentColor = (item) => {
+    if (expStatus(item.exp) === 'expired') return '#94A3B8'
+    if (Number(item.qty) <= 3)             return '#DC2626'
+    if (expStatus(item.exp) === 'soon')    return '#D97706'
+    return '#16A34A'
+  }
+
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Stok Gudang</h2>
-        <button onClick={load} style={styles.btnRefresh}><RefreshCw size={18} /></button>
+    <div className="page">
+      <div className="page-header">
+        <div style={s.headerRow}>
+          <div style={s.titleRow}>
+            <div style={{ ...s.titleIcon, background: '#F5F3FF' }}>
+              <LayoutList size={20} color="#7C3AED" />
+            </div>
+            <h2 style={s.title}>Stok Gudang</h2>
+          </div>
+          <button onClick={load} style={s.refreshBtn} title="Refresh">
+            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+          </button>
+        </div>
       </div>
 
-      <input style={styles.searchInput} value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama, barcode, posisi..." />
+      {/* Search */}
+      <div style={s.searchWrap}>
+        <Search size={16} color="#94A3B8" style={s.searchIcon} />
+        <input
+          className="input"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Cari nama, barcode, posisi..."
+          style={{ paddingLeft: 38 }}
+        />
+      </div>
 
-      <div style={styles.filters}>
-        {[['all', 'Semua'], ['low', 'Stok Sedikit'], ['expiring', 'Segera Exp'], ['expired', 'Kadaluarsa']].map(([val, label]) => (
-          <button key={val} onClick={() => setFilter(val)} style={{ ...styles.filterBtn, ...(filter === val ? styles.filterActive : {}) }}>{label}</button>
+      {/* Filter chips */}
+      <div style={s.filterRow}>
+        {FILTERS.map(({ val, label }) => (
+          <button
+            key={val}
+            onClick={() => setFilter(val)}
+            style={{ ...s.chip, ...(filter === val ? s.chipActive : {}) }}
+          >
+            {label}
+          </button>
         ))}
       </div>
 
+      {/* Content */}
       {loading ? (
-        <div style={styles.center}><RefreshCw size={32} color="#1976d2" style={{ animation: 'spin 1s linear infinite' }} /></div>
+        <div className="empty-state">
+          <Loader2 size={36} color="#CBD5E1" className="spin" />
+          <p style={{ color: '#94A3B8' }}>Memuat data...</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div style={styles.center}><p style={{ color: '#888' }}>Tidak ada data</p></div>
+        <div className="empty-state">
+          <Package size={48} color="#CBD5E1" strokeWidth={1.5} />
+          <p>Tidak ada data</p>
+          <span>{search ? `Tidak ditemukan untuk "${search}"` : 'Belum ada barang tercatat'}</span>
+        </div>
       ) : (
-        <div style={styles.list}>
+        <div style={s.list}>
           {filtered.map((item, i) => {
-            const expStatus = getExpStatus(item.exp)
+            const es = expStatus(item.exp)
+            const ac = accentColor(item)
             return (
-              <div key={i} style={{ ...styles.item, borderLeft: `4px solid ${Number(item.qty) <= 3 ? '#e53935' : expStatus === 'expired' ? '#9e9e9e' : expStatus === 'soon' ? '#ff9800' : '#43a047'}` }}>
-                <div style={styles.itemTop}>
-                  <span style={styles.itemName}>{item.nama}</span>
-                  <span style={{ ...styles.qtyBadge, background: Number(item.qty) <= 3 ? '#ffebee' : '#e8f5e9', color: Number(item.qty) <= 3 ? '#c62828' : '#2e7d32' }}>
+              <div key={i} className="card" style={{ ...s.item, borderLeftColor: ac }}>
+                <div style={s.itemTop}>
+                  <span style={s.itemName}>{item.nama}</span>
+                  <span className={`badge ${Number(item.qty) <= 3 ? 'badge-danger' : 'badge-success'}`}>
                     {item.qty} pcs
                   </span>
                 </div>
-                <div style={styles.itemMeta}>
-                  <span style={styles.metaItem}>{item.barcode}</span>
-                  {item.posisi && <span style={{ ...styles.metaItem, color: '#43a047' }}>📍 {item.posisi}</span>}
+                <div style={s.itemMeta}>
+                  <span style={s.metaCode}>{item.barcode}</span>
+                  {item.posisi && (
+                    <span style={s.metaItem}>
+                      <MapPin size={11} color="#16A34A" /> {item.posisi}
+                    </span>
+                  )}
                   {item.exp && (
-                    <span style={{ ...styles.metaItem, color: expStatus === 'expired' ? '#9e9e9e' : expStatus === 'soon' ? '#e65100' : '#666' }}>
-                      {expStatus === 'expired' && '⚠️ '}Exp: {item.exp}
+                    <span style={{ ...s.metaItem, color: es === 'expired' ? '#94A3B8' : es === 'soon' ? '#D97706' : '#64748B' }}>
+                      <Calendar size={11} /> {item.exp}
+                      {es === 'soon'    && <AlertTriangle size={11} color="#D97706" />}
+                      {es === 'expired' && <AlertTriangle size={11} color="#94A3B8" />}
                     </span>
                   )}
                 </div>
@@ -87,21 +144,22 @@ export default function StockList() {
   )
 }
 
-const styles = {
-  page: { padding: '24px 16px 100px', maxWidth: 480, margin: '0 auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: 700, color: '#7b1fa2' },
-  btnRefresh: { padding: '8px', background: '#f3e5f5', border: 'none', borderRadius: 8, cursor: 'pointer', color: '#7b1fa2', display: 'flex' },
-  searchInput: { width: '100%', padding: '10px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 15, outline: 'none', marginBottom: 12 },
-  filters: { display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' },
-  filterBtn: { padding: '5px 12px', borderRadius: 20, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#666' },
-  filterActive: { background: '#7b1fa2', color: '#fff', borderColor: '#7b1fa2' },
-  list: { display: 'flex', flexDirection: 'column', gap: 8 },
-  item: { background: '#fff', borderRadius: 10, padding: '12px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' },
-  itemTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  itemName: { fontSize: 15, fontWeight: 700, flex: 1, marginRight: 8 },
-  qtyBadge: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' },
-  itemMeta: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  metaItem: { fontSize: 12, color: '#888', fontFamily: 'monospace' },
-  center: { display: 'flex', justifyContent: 'center', padding: '60px 0' },
+const s = {
+  headerRow:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  titleRow:   { display: 'flex', alignItems: 'center', gap: 10 },
+  titleIcon:  { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  title:      { fontSize: 20, fontWeight: 700, color: '#0F172A' },
+  refreshBtn: { width: 36, height: 36, background: '#F5F3FF', border: 'none', borderRadius: 10, cursor: 'pointer', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  searchWrap: { position: 'relative', marginBottom: 10 },
+  searchIcon: { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
+  filterRow:  { display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 },
+  chip:       { padding: '5px 13px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#64748B', whiteSpace: 'nowrap', flexShrink: 0 },
+  chipActive: { background: '#7C3AED', color: '#fff', borderColor: '#7C3AED' },
+  list:       { display: 'flex', flexDirection: 'column', gap: 8 },
+  item:       { padding: '12px 14px', borderLeft: '4px solid #16A34A' },
+  itemTop:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  itemName:   { fontSize: 15, fontWeight: 600, color: '#1E293B', flex: 1, marginRight: 8 },
+  itemMeta:   { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  metaCode:   { fontSize: 12, color: '#94A3B8', fontFamily: 'monospace' },
+  metaItem:   { fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', gap: 3 },
 }

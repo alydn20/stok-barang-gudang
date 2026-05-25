@@ -1,72 +1,116 @@
 import React from 'react'
 import { useScanner } from '../hooks/useScanner'
-import { Camera, CameraOff, RefreshCw } from 'lucide-react'
+import { Camera, CameraOff, X, SwitchCamera } from 'lucide-react'
 
 export default function Scanner({ onDetected, onCancel }) {
   const { videoRef, scanning, error, cameras, selectedCamera, setSelectedCamera, startScan, stopScan } = useScanner(onDetected)
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.container}>
-        <h3 style={styles.title}>Scan Barcode</h3>
+    <div style={s.overlay}>
+      <div style={s.sheet}>
+        {/* Handle */}
+        <div style={s.handle} />
 
-        {cameras.length > 1 && (
-          <select
-            value={selectedCamera || ''}
-            onChange={(e) => setSelectedCamera(e.target.value)}
-            style={styles.select}
-          >
-            {cameras.map(c => (
-              <option key={c.deviceId} value={c.deviceId}>{c.label || `Kamera ${c.deviceId.slice(0,8)}`}</option>
-            ))}
-          </select>
-        )}
-
-        <div style={styles.videoWrapper}>
-          <video ref={videoRef} style={styles.video} />
-          {!scanning && (
-            <div style={styles.placeholder}>
-              <Camera size={48} color="#888" />
-              <p style={{ color: '#888', marginTop: 8 }}>Kamera belum aktif</p>
-            </div>
-          )}
-          {scanning && <div style={styles.scanLine} />}
+        <div style={s.header}>
+          <h3 style={s.title}>Scan Barcode</h3>
+          <button onClick={onCancel} style={s.closeBtn}><X size={20} /></button>
         </div>
 
-        {error && <p style={styles.error}>{error}</p>}
+        {cameras.length > 1 && (
+          <div style={s.cameraRow}>
+            <SwitchCamera size={16} color="#64748B" />
+            <select value={selectedCamera || ''} onChange={e => setSelectedCamera(e.target.value)} style={s.select}>
+              {cameras.map(c => (
+                <option key={c.deviceId} value={c.deviceId}>
+                  {c.label || `Kamera ${c.deviceId.slice(0, 6)}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        <div style={styles.btnRow}>
+        <div style={s.viewfinder}>
+          <video ref={videoRef} style={s.video} playsInline />
+          {!scanning && (
+            <div style={s.placeholder}>
+              <Camera size={44} color="#CBD5E1" />
+              <p style={{ color: '#94A3B8', fontSize: 14, marginTop: 8 }}>Kamera belum aktif</p>
+            </div>
+          )}
+          {scanning && (
+            <>
+              <div style={s.corner1} /><div style={s.corner2} />
+              <div style={s.corner3} /><div style={s.corner4} />
+              <div style={s.scanLine} />
+            </>
+          )}
+        </div>
+
+        {error && (
+          <div className="alert alert-danger" style={{ marginTop: 8 }}>
+            <Camera size={16} />{error}
+          </div>
+        )}
+
+        <p style={s.hint}>Arahkan ke barcode / QR produk</p>
+
+        <div style={s.btnRow}>
           {!scanning ? (
-            <button onClick={startScan} style={styles.btnPrimary}>
+            <button onClick={startScan} className="btn btn-primary btn-full">
               <Camera size={18} /> Mulai Scan
             </button>
           ) : (
-            <button onClick={stopScan} style={styles.btnDanger}>
-              <CameraOff size={18} /> Stop
+            <button onClick={stopScan} className="btn btn-danger btn-full">
+              <CameraOff size={18} /> Berhenti
             </button>
           )}
-          <button onClick={onCancel} style={styles.btnSecondary}>Batal</button>
         </div>
-
-        <p style={styles.hint}>Arahkan kamera ke barcode produk</p>
       </div>
     </div>
   )
 }
 
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  container: { background: '#fff', borderRadius: 16, padding: 24, width: '90%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 },
-  title: { textAlign: 'center', fontSize: 18, fontWeight: 700 },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 },
-  videoWrapper: { position: 'relative', background: '#000', borderRadius: 12, overflow: 'hidden', height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  video: { width: '100%', height: '100%', objectFit: 'cover' },
-  placeholder: { position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  scanLine: { position: 'absolute', left: '10%', right: '10%', height: 2, background: '#00e676', boxShadow: '0 0 8px #00e676', animation: 'scan 2s linear infinite', top: '50%' },
-  btnRow: { display: 'flex', gap: 8 },
-  btnPrimary: { flex: 1, padding: '10px 16px', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  btnDanger: { flex: 1, padding: '10px 16px', background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  btnSecondary: { flex: 1, padding: '10px 16px', background: '#eee', color: '#333', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer' },
-  error: { color: '#e53935', fontSize: 13, textAlign: 'center' },
-  hint: { color: '#888', fontSize: 12, textAlign: 'center' },
+const s = {
+  overlay: {
+    position: 'fixed', inset: 0,
+    background: 'rgba(15,23,42,0.6)',
+    display: 'flex', alignItems: 'flex-end',
+    zIndex: 1000,
+    backdropFilter: 'blur(2px)',
+  },
+  sheet: {
+    background: '#fff',
+    borderRadius: '20px 20px 0 0',
+    padding: '0 20px 32px',
+    width: '100%',
+    maxWidth: 520,
+    margin: '0 auto',
+    animation: 'fadeIn 0.2s ease',
+  },
+  handle: { width: 40, height: 4, background: '#E2E8F0', borderRadius: 4, margin: '12px auto 16px' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  title: { fontSize: 18, fontWeight: 700, color: '#0F172A' },
+  closeBtn: { width: 32, height: 32, borderRadius: 8, border: 'none', background: '#F1F5F9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' },
+  cameraRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 },
+  select: { flex: 1, padding: '7px 10px', border: '1.5px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#334155', background: '#fff' },
+  viewfinder: {
+    position: 'relative', background: '#0F172A',
+    borderRadius: 14, overflow: 'hidden',
+    height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 12,
+  },
+  video: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
+  placeholder: { display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 },
+  scanLine: {
+    position: 'absolute', left: '12%', right: '12%', height: 2,
+    background: 'linear-gradient(90deg, transparent, #2563EB, transparent)',
+    animation: 'scanLine 2s ease-in-out infinite',
+    zIndex: 2,
+  },
+  corner1: { position: 'absolute', top: 16, left: 16, width: 24, height: 24, borderTop: '3px solid #2563EB', borderLeft: '3px solid #2563EB', borderRadius: '4px 0 0 0', zIndex: 2 },
+  corner2: { position: 'absolute', top: 16, right: 16, width: 24, height: 24, borderTop: '3px solid #2563EB', borderRight: '3px solid #2563EB', borderRadius: '0 4px 0 0', zIndex: 2 },
+  corner3: { position: 'absolute', bottom: 16, left: 16, width: 24, height: 24, borderBottom: '3px solid #2563EB', borderLeft: '3px solid #2563EB', borderRadius: '0 0 0 4px', zIndex: 2 },
+  corner4: { position: 'absolute', bottom: 16, right: 16, width: 24, height: 24, borderBottom: '3px solid #2563EB', borderRight: '3px solid #2563EB', borderRadius: '0 0 4px 0', zIndex: 2 },
+  hint: { fontSize: 13, color: '#94A3B8', textAlign: 'center', marginBottom: 14 },
+  btnRow: { display: 'flex', flexDirection: 'column', gap: 8 },
 }
