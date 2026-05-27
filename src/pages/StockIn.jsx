@@ -67,14 +67,19 @@ export default function StockIn() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.barcode) return setStatus({ type: 'error', msg: 'Barcode wajib diisi.' })
-    if (found !== false && (!form.qty || Number(form.qty) < 1)) return setStatus({ type: 'error', msg: 'Qty wajib diisi minimal 1.' })
-    if (found === true && batchMode === 'new' && !form.batch.trim()) return setStatus({ type: 'error', msg: 'No. Batch wajib diisi untuk batch baru.' })
+    if (found === true && batchMode === 'existing' && (!form.qty || Number(form.qty) < 1))
+      return setStatus({ type: 'error', msg: 'Qty wajib diisi minimal 1.' })
+    if (found === true && batchMode === 'new' && !form.batch.trim())
+      return setStatus({ type: 'error', msg: 'No. Batch wajib diisi untuk batch baru.' })
+    if (found === true && batchMode === 'new' && (!form.stokAwal || Number(form.stokAwal) < 1) && (!form.qty || Number(form.qty) < 1))
+      return setStatus({ type: 'error', msg: 'Isi Stok Awal atau Qty Masuk untuk batch baru.' })
     setLoading(true); setStatus(null)
+    const isNewBatch = found === false || (found === true && batchMode === 'new')
     try {
       await sheetsApi.stockIn({
         ...form,
-        qty:     found === false ? 0 : Number(form.qty),
-        stokAwal: found === false && form.stokAwal !== '' ? Number(form.stokAwal) : undefined,
+        qty:     isNewBatch ? (Number(form.qty) || 0) : Number(form.qty),
+        stokAwal: isNewBatch && form.stokAwal !== '' ? Number(form.stokAwal) : undefined,
         tanggal: new Date().toISOString(),
       })
       setStatus({ type: 'success', msg: 'Barang masuk berhasil disimpan.' })
@@ -181,10 +186,17 @@ export default function StockIn() {
             )}
 
             {batchMode === 'new' && (
-              <input className="input" value={form.batch}
-                onChange={e => set('batch', e.target.value)}
-                placeholder="Wajib diisi — cth: NO002, LOT-002, 2025-B"
-                style={{ marginTop: batches.length > 0 ? 0 : 4 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: batches.length > 0 ? 0 : 4 }}>
+                <input className="input" value={form.batch}
+                  onChange={e => set('batch', e.target.value)}
+                  placeholder="Wajib diisi — cth: NO002, LOT-002, 2025-B" />
+                <div>
+                  <label className="label">Stok Awal Batch Ini (pcs)</label>
+                  <input className="input" type="number" min="0" value={form.stokAwal}
+                    onChange={e => set('stokAwal', e.target.value)} placeholder="0" />
+                  <p style={s.stokAwalDesc}>Isi jika stok batch ini sudah ada sebelumnya.</p>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -212,9 +224,17 @@ export default function StockIn() {
         <div style={s.row2}>
           {found !== false && (
           <div style={{ flex: 1 }}>
-            <label className="label">Qty Masuk (pcs) <span style={s.required}>*</span></label>
-            <input className="input" type="number" min="1" value={form.qty}
-              onChange={e => set('qty', e.target.value)} placeholder="1" />
+            <label className="label">
+              Qty Masuk (pcs){' '}
+              {batchMode === 'existing'
+                ? <span style={s.required}>*</span>
+                : <span style={{ color: '#64748B', fontWeight: 400, fontSize: 11 }}>(opsional)</span>}
+            </label>
+            <input className="input" type="number"
+              min={batchMode === 'existing' ? 1 : 0}
+              value={form.qty}
+              onChange={e => set('qty', e.target.value)}
+              placeholder={batchMode === 'existing' ? '1' : '0'} />
           </div>
           )}
           <div style={{ flex: 1 }}>
