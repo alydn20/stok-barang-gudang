@@ -1,11 +1,11 @@
 {
-  "name": "Stok Gudang",
-  "short_name": "Stok Gudang",
+  "name": "Stok Barang (By Aliyudin)",
+  "short_name": "Stok Barang",
   "description": "Manajemen stok barang gudang dengan barcode scanner",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f0f2f5",
+  "background_color": "#EEF2F8",
   "theme_color": "#2563EB",
   "icons": [
     {
