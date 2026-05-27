@@ -454,11 +454,75 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚙️ Stok Gudang')
     .addItem('✅ Terapkan Format Saja (Data Aman)', 'applyFormatOnly')
+    .addItem('🔄 Migrasi Data Lama → Batch-1', 'migrateLamaToBatch1')
     .addItem('Refresh Semua Total (D/E/F)', 'refreshAllFormulas')
     .addItem('Refresh Conditional Formatting', 'applyConditionalFormatting')
     .addSeparator()
     .addItem('⚠️ Setup Template BARU (Hapus Semua Data)', 'setupSpreadsheet')
     .addToUi()
+}
+
+// ---- MIGRASI DATA LAMA → BATCH-1 ----
+
+function migrateLamaToBatch1() {
+  const ui = SpreadsheetApp.getUi()
+  const resp = ui.alert(
+    '🔄 Migrasi Batch',
+    'Semua baris yang kolom "No. Batch"-nya kosong akan diisi "Batch-1".\n\nLanjutkan?',
+    ui.ButtonSet.YES_NO
+  )
+  if (resp !== ui.Button.YES) return
+
+  const ss    = SpreadsheetApp.getActiveSpreadsheet()
+  let count   = 0
+
+  // Master_Stok — kolom J (no. 10)
+  const master = ss.getSheetByName(SHEET_MASTER)
+  if (master && master.getLastRow() > 1) {
+    const vals = master.getRange(2, 10, master.getLastRow() - 1, 1).getValues()
+    vals.forEach((r, i) => {
+      if (r[0].toString().trim() === '') {
+        master.getRange(i + 2, 10).setValue('Batch-1')
+        count++
+      }
+    })
+  }
+
+  // Barang_Masuk — kolom F (no. 6)
+  const masuk = ss.getSheetByName(SHEET_MASUK)
+  if (masuk && masuk.getLastRow() > 1) {
+    const vals = masuk.getRange(2, 6, masuk.getLastRow() - 1, 1).getValues()
+    vals.forEach((r, i) => {
+      if (r[0].toString().trim() === '') {
+        masuk.getRange(i + 2, 6).setValue('Batch-1')
+        count++
+      }
+    })
+  }
+
+  // Barang_Keluar — kolom F (no. 6)
+  const keluar = ss.getSheetByName(SHEET_KELUAR)
+  if (keluar && keluar.getLastRow() > 1) {
+    const vals = keluar.getRange(2, 6, keluar.getLastRow() - 1, 1).getValues()
+    vals.forEach((r, i) => {
+      if (r[0].toString().trim() === '') {
+        keluar.getRange(i + 2, 6).setValue('Batch-1')
+        count++
+      }
+    })
+  }
+
+  // Refresh semua total D/E/F di Master_Stok
+  if (master && master.getLastRow() > 1) {
+    const data = master.getRange(2, 1, master.getLastRow() - 1, 10).getValues()
+    data.forEach((r, i) => {
+      const bc    = r[0].toString().trim()
+      const batch = r[9] ? r[9].toString().trim() : ''
+      if (bc) _updateRowTotals(master, bc, batch, i + 2)
+    })
+  }
+
+  ui.alert(`✅ Selesai! ${count} baris dimigrasi ke "Batch-1". Total stok sudah diperbarui.`)
 }
 
 // ---- FORMAT SAJA (tidak hapus data) ----
