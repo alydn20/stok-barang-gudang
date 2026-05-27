@@ -12,9 +12,12 @@ const PRESETS = [
 
 function toDateStr(d) { return d.toISOString().slice(0, 10) }
 
+const LS_STATS = 'home_stats_cache'
+const readCache = () => { try { return JSON.parse(localStorage.getItem(LS_STATS) || 'null') } catch { return null } }
+
 export default function Home() {
   const navigate = useNavigate()
-  const [stats,       setStats]       = useState(null)
+  const [stats,       setStats]       = useState(readCache)   // tampil cache langsung
   const [loading,     setLoading]     = useState(true)
   const [preset,      setPreset]      = useState(7)
   const [customStart, setCustomStart] = useState('')
@@ -24,7 +27,10 @@ export default function Home() {
   const loadStats = useCallback((startDate, endDate) => {
     setLoading(true)
     sheetsApi.getStats(startDate && endDate ? { startDate, endDate } : {})
-      .then(data => setStats(data))
+      .then(data => {
+        setStats(data)
+        try { localStorage.setItem(LS_STATS, JSON.stringify(data)) } catch {}
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -76,12 +82,12 @@ export default function Home() {
       {/* Stats row */}
       <div style={s.statsRow}>
         <StatCard icon={<Boxes size={17} color="#2563EB" />} bg="#EFF6FF"
-          val={loading ? '—' : stats?.totalItem ?? 0} label="Total Item" />
+          val={stats ? (stats.totalItem ?? 0) : '—'} label="Total Item" />
         <StatCard icon={<TrendingDown size={17} color="#DC2626" />} bg="#FEF2F2"
-          val={loading ? '—' : stats?.lowStock ?? 0} label="Stok Sedikit"
+          val={stats ? (stats.lowStock ?? 0) : '—'} label="Stok Sedikit"
           warn={(stats?.lowStock ?? 0) > 0} warnColor="#DC2626" />
         <StatCard icon={<Clock size={17} color="#D97706" />} bg="#FFFBEB"
-          val={loading ? '—' : stats?.expiringSoon ?? 0} label="Segera Exp"
+          val={stats ? (stats.expiringSoon ?? 0) : '—'} label="Segera Exp"
           warn={(stats?.expiringSoon ?? 0) > 0} warnColor="#D97706" />
       </div>
 
@@ -89,19 +95,19 @@ export default function Home() {
       <div style={s.todayRow}>
         <div style={s.todayCard}>
           <ArrowDownCircle size={16} color="#16A34A" />
-          <span style={s.todayNum}>{loading ? '—' : stats?.todayMasuk ?? 0}</span>
+          <span style={s.todayNum}>{stats ? (stats.todayMasuk ?? 0) : '—'}</span>
           <span style={s.todayLabel}>Masuk hari ini</span>
         </div>
         <div style={s.todayDivider} />
         <div style={s.todayCard}>
           <ArrowUpCircle size={16} color="#DC2626" />
-          <span style={s.todayNum}>{loading ? '—' : stats?.todayKeluar ?? 0}</span>
+          <span style={s.todayNum}>{stats ? (stats.todayKeluar ?? 0) : '—'}</span>
           <span style={s.todayLabel}>Keluar hari ini</span>
         </div>
         <div style={s.todayDivider} />
         <div style={s.todayCard}>
           <PackageX size={16} color="#94A3B8" />
-          <span style={s.todayNum}>{loading ? '—' : stats?.expired ?? 0}</span>
+          <span style={s.todayNum}>{stats ? (stats.expired ?? 0) : '—'}</span>
           <span style={s.todayLabel}>Kadaluarsa</span>
         </div>
       </div>
@@ -139,7 +145,7 @@ export default function Home() {
           <span style={{ ...s.dot, background: '#DC2626', marginLeft: 10 }} /> Keluar
         </div>
 
-        {loading ? (
+        {!stats && loading ? (
           <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 12, color: '#94A3B8' }}>Memuat...</span>
           </div>
