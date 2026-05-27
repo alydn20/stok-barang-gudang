@@ -75,7 +75,7 @@ export default function Home() {
           <h1 style={s.appTitle}>Stok Gudang</h1>
         </div>
         <div style={s.logoBox}>
-          <Boxes size={26} color="#2563EB" />
+          <Boxes size={24} color="#fff" />
         </div>
       </div>
 
@@ -184,11 +184,11 @@ export default function Home() {
 
       {/* Action Grid */}
       <p style={s.sectionTitle}>Menu Utama</p>
-      <div style={s.grid}>
+      <div style={s.grid} className="home-grid-actions">
         {actions.map(({ label, icon: Icon, color, bg, path }) => (
-          <button key={path} onClick={() => navigate(path)} style={s.actionCard}>
+          <button key={path} onClick={() => navigate(path)} style={s.actionCard} className="action-card-btn">
             <div style={{ ...s.actionIcon, background: bg }}>
-              <Icon size={26} color={color} strokeWidth={1.8} />
+              <Icon size={28} color={color} strokeWidth={1.7} />
             </div>
             <span style={s.actionLabel}>{label}</span>
           </button>
@@ -209,39 +209,39 @@ function StatCard({ icon, bg, val, label, warn, warnColor }) {
 }
 
 const s = {
-  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 16px' },
-  greeting:    { fontSize: 13, color: '#64748B' },
-  appTitle:    { fontSize: 22, fontWeight: 800, color: '#0F172A', marginTop: 2 },
-  logoBox:     { width: 46, height: 46, background: '#EFF6FF', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  statsRow:    { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 },
-  statCard:    { background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 12, padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, transition: 'border-color 0.2s' },
-  statIcon:    { width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  statNum:     { fontSize: 22, fontWeight: 800, lineHeight: 1 },
-  statLabel:   { fontSize: 11, color: '#64748B', textAlign: 'center', lineHeight: 1.2 },
-  todayRow:    { display: 'flex', background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 12, marginBottom: 14, overflow: 'hidden' },
-  todayCard:   { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 6px' },
-  todayDivider:{ width: 1, background: '#E2E8F0', margin: '8px 0' },
-  todayNum:    { fontSize: 18, fontWeight: 800, color: '#0F172A', lineHeight: 1 },
-  todayLabel:  { fontSize: 10, color: '#64748B', textAlign: 'center', lineHeight: 1.2 },
-  chartWrap:    { background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 12, padding: '14px 14px 10px', marginBottom: 14 },
-  chartHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  chartTitle:   { fontSize: 13, fontWeight: 600, color: '#0F172A' },
+  header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 18px' },
+  greeting:     { fontSize: 13, color: '#64748B', fontWeight: 500 },
+  appTitle:     { fontSize: 24, fontWeight: 800, color: '#0F172A', marginTop: 2, letterSpacing: '-0.02em' },
+  logoBox:      { width: 48, height: 48, background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(37,99,235,0.28)' },
+  statsRow:     { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 },
+  statCard:     { background: '#fff', border: '1px solid #E8EEF6', borderRadius: 14, padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'border-color 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
+  statIcon:     { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  statNum:      { fontSize: 22, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.02em' },
+  statLabel:    { fontSize: 10, color: '#64748B', textAlign: 'center', lineHeight: 1.3, fontWeight: 500 },
+  todayRow:     { display: 'flex', background: '#fff', border: '1px solid #E8EEF6', borderRadius: 14, marginBottom: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
+  todayCard:    { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '13px 8px' },
+  todayDivider: { width: 1, background: '#EEF2F7', margin: '10px 0' },
+  todayNum:     { fontSize: 20, fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em' },
+  todayLabel:   { fontSize: 10, color: '#64748B', textAlign: 'center', lineHeight: 1.3, fontWeight: 500 },
+  chartWrap:    { background: '#fff', border: '1px solid #E8EEF6', borderRadius: 14, padding: '16px 16px 12px', marginBottom: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
+  chartHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  chartTitle:   { fontSize: 13, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.01em' },
   presetRow:    { display: 'flex', gap: 4 },
-  presetBtn:    { padding: '3px 9px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 11, fontWeight: 500, cursor: 'pointer', color: '#64748B' },
-  presetActive: { background: '#2563EB', color: '#fff', borderColor: '#2563EB' },
+  presetBtn:    { padding: '4px 10px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#64748B', transition: 'all 0.15s' },
+  presetActive: { background: '#2563EB', color: '#fff', borderColor: '#2563EB', boxShadow: '0 2px 8px rgba(37,99,235,0.28)' },
   customRow:    { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 },
   dateInput:    { flex: 1, padding: '6px 8px', fontSize: 12 },
-  chartLegend:  { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#64748B', marginBottom: 10 },
+  chartLegend:  { display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748B', marginBottom: 10 },
   dot:          { display: 'inline-block', width: 8, height: 8, borderRadius: 99 },
   chartScroll:  { overflowX: 'auto', paddingBottom: 2 },
-  chartBars:    { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: 60 },
+  chartBars:    { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: 64 },
   barCol:       { flex: 1, minWidth: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 },
-  barGroup:     { display: 'flex', gap: 2, alignItems: 'flex-end', height: 52 },
-  bar:          { width: 7, borderRadius: '3px 3px 0 0', minHeight: 2, transition: 'height 0.3s' },
-  barLabel:     { fontSize: 9, color: '#94A3B8', whiteSpace: 'nowrap' },
-  sectionTitle:{ fontSize: 13, fontWeight: 600, color: '#64748B', marginBottom: 10, letterSpacing: 0.3 },
-  grid:        { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-  actionCard:  { background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 14, padding: '20px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'box-shadow 0.15s, transform 0.1s' },
-  actionIcon:  { width: 54, height: 54, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontSize: 14, fontWeight: 600, color: '#1E293B' },
+  barGroup:     { display: 'flex', gap: 3, alignItems: 'flex-end', height: 56 },
+  bar:          { width: 8, borderRadius: '4px 4px 0 0', minHeight: 3, transition: 'height 0.35s' },
+  barLabel:     { fontSize: 9, color: '#94A3B8', whiteSpace: 'nowrap', fontWeight: 500 },
+  sectionTitle: { fontSize: 11, fontWeight: 700, color: '#94A3B8', marginBottom: 10, letterSpacing: '0.07em', textTransform: 'uppercase' },
+  grid:         { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
+  actionCard:   { background: '#fff', border: '1px solid #E8EEF6', borderRadius: 18, padding: '22px 12px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
+  actionIcon:   { width: 58, height: 58, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  actionLabel:  { fontSize: 13, fontWeight: 700, color: '#1E293B', letterSpacing: '-0.01em' },
 }
