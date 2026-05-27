@@ -2,11 +2,18 @@ import React, { useState, useEffect } from 'react'
 import {
   CheckCircle2, XCircle, Save, Wifi,
   Settings2, Info, Loader2, Server,
-  HardDrive, Cloud,
+  HardDrive, Cloud, SlidersHorizontal,
 } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
-const LS_KEY = 'gas_url'
+const LS_KEY      = 'gas_url'
+const LS_STRATEGY = 'stockout_strategy'
+
+const STRATEGIES = [
+  { val: 'FEFO',   label: 'Auto FEFO',  desc: 'Batch exp. paling dekat diambil duluan (default)' },
+  { val: 'LIFO',   label: 'Auto LIFO',  desc: 'Batch exp. paling jauh diambil duluan' },
+  { val: 'MANUAL', label: 'Manual',     desc: 'Selalu pilih batch sendiri, tidak ada auto' },
+]
 
 export default function Settings() {
   const [gasUrl,     setGasUrl]     = useState('')
@@ -16,6 +23,7 @@ export default function Settings() {
   const [testResult, setTestResult] = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [source,     setSource]     = useState('')
+  const [strategy,   setStrategy]   = useState(localStorage.getItem(LS_STRATEGY) || 'FEFO')
 
   useEffect(() => {
     fetch('/api/config')
@@ -33,6 +41,11 @@ export default function Settings() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  const handleStrategyChange = (val) => {
+    setStrategy(val)
+    localStorage.setItem(LS_STRATEGY, val)
+  }
 
   const handleSave = () => {
     if (!gasUrl.trim()) return setSaveResult({ ok: false, msg: 'URL tidak boleh kosong.' })
@@ -129,6 +142,26 @@ export default function Settings() {
         )}
       </div>
 
+      {/* Strategi Barang Keluar */}
+      <div className="card" style={s.card}>
+        <div style={s.cardHeader}>
+          <SlidersHorizontal size={18} color="#DC2626" />
+          <h3 style={s.cardTitle}>Strategi Barang Keluar</h3>
+        </div>
+        <p style={{ fontSize: 12, color: '#64748B', marginBottom: 10 }}>Urutan pengambilan batch saat barang keluar</p>
+        {STRATEGIES.map(opt => (
+          <button key={opt.val} type="button"
+            onClick={() => handleStrategyChange(opt.val)}
+            style={{ ...s.stratOption, ...(strategy === opt.val ? s.stratActive : {}) }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: strategy === opt.val ? '#2563EB' : '#1E293B' }}>{opt.label}</span>
+              {strategy === opt.val && <CheckCircle2 size={16} color="#2563EB" />}
+            </div>
+            <p style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{opt.desc}</p>
+          </button>
+        ))}
+      </div>
+
       {/* Tentang */}
       <div className="card" style={s.card}>
         <div style={s.cardHeader}><Info size={18} color="#64748B" /><h3 style={s.cardTitle}>Tentang</h3></div>
@@ -165,4 +198,6 @@ const s = {
   aboutVal:    { fontSize: 13, fontWeight: 600, color: '#1E293B', textAlign: 'right' },
   aboutCredit: { fontSize: 13, fontWeight: 700, color: '#2563EB' },
   creditTag:   { marginTop: 10, display: 'inline-block', background: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontSize: 11, padding: '3px 12px', borderRadius: 99, letterSpacing: 0.5 },
+  stratOption: { padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', textAlign: 'left', width: '100%', marginBottom: 6, display: 'block' },
+  stratActive: { borderColor: '#2563EB', background: '#EFF6FF' },
 }

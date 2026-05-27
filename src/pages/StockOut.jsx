@@ -3,6 +3,9 @@ import { ScanLine, CheckCircle2, XCircle, PackageMinus, MapPin, Package, Calenda
 import Scanner from '../components/Scanner'
 import { sheetsApi } from '../services/sheetsApi'
 
+const LS_STRATEGY = 'stockout_strategy'
+const getStrategy = () => localStorage.getItem(LS_STRATEGY) || 'FEFO'
+
 export default function StockOut() {
   const [form, setForm] = useState({ barcode: '', qty: '', catatan: '' })
   const [itemInfo, setItemInfo] = useState(null)
@@ -10,8 +13,9 @@ export default function StockOut() {
   const [loading, setLoading] = useState(false)
   const [searching, setSearching] = useState(false)
   const [status, setStatus] = useState(null)
-  const [selectedBatch, setSelectedBatch] = useState(null) // null = auto FIFO, string = batch tertentu
+  const [selectedBatch, setSelectedBatch] = useState(null) // null = auto, string = batch tertentu
 
+  const strategy = getStrategy()
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const lookupBarcode = async (barcode) => {
@@ -37,23 +41,39 @@ export default function StockOut() {
   const availableBatches = (itemInfo?.batches || []).filter(b => Number(b.qty) > 0)
   const hasBatches       = availableBatches.some(b => b.batch)
 
-  const activeBatchInfo = selectedBatch !== null
-    ? availableBatches.find(b => b.batch === selectedBatch)
+  // LIFO: batch dengan exp paling jauh (paling baru)
+  const lifoBatch = (() => {
+    const withExp    = [...availableBatches.filter(b => b.exp)].sort((a, b) => new Date(b.exp) - new Date(a.exp))
+    const withoutExp = availableBatches.filter(b => !b.exp)
+    return [...withExp, ...withoutExp][0]?.batch ?? null
+  })()
+
+  // Batch yang benar-benar dipakai (null = GAS FIFO/FEFO)
+  const effectiveBatch = selectedBatch !== null
+    ? selectedBatch
+    : (strategy === 'LIFO' ? lifoBatch : null)
+
+  const effectiveBatchInfo = effectiveBatch !== null
+    ? availableBatches.find(b => b.batch === effectiveBatch)
     : null
 
-  const availableQty = selectedBatch !== null
-    ? (activeBatchInfo ? Number(activeBatchInfo.qty) : 0)
+  const availableQty = effectiveBatch !== null
+    ? (effectiveBatchInfo ? Number(effectiveBatchInfo.qty) : 0)
     : (itemInfo ? Number(itemInfo.qty) : 0)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (strategy === 'MANUAL' && hasBatches && selectedBatch === null)
+      return setStatus({ type: 'error', msg: 'Pilih batch terlebih dahulu.' })
     if (!form.barcode || !form.qty) return setStatus({ type: 'error', msg: 'Barcode dan qty wajib diisi.' })
+    if (Number(form.qty) < 1)
+      return setStatus({ type: 'error', msg: 'Qty harus minimal 1.' })
     if (Number(form.qty) > availableQty)
       return setStatus({ type: 'error', msg: `Stok tidak cukup. Tersedia: ${availableQty} pcs.` })
     setLoading(true); setStatus(null)
     try {
       const payload = { ...form, tanggal: new Date().toISOString() }
-      if (selectedBatch !== null) payload.batch = selectedBatch
+      if (effectiveBatch !== null) payload.batch = effectiveBatch
       await sheetsApi.stockOut(payload)
       setStatus({ type: 'success', msg: 'Barang keluar berhasil disimpan.' })
       setForm({ barcode: '', qty: '', catatan: '' }); setItemInfo(null); setSelectedBatch(null)
@@ -106,18 +126,24 @@ export default function StockOut() {
               <div>
                 <p style={s.batchLabel}><Layers size={12} /> Pilih Batch:</p>
                 <div style={s.batchList}>
-                  {/* Auto FIFO */}
+                  {/* Auto FEFO / LIFO */}
+                  {strategy !== 'MANUAL' && (
                   <button type="button"
                     onClick={() => setSelectedBatch(null)}
                     style={{ ...s.batchCard, ...(selectedBatch === null ? s.batchCardActive : {}) }}>
                     <div style={s.batchCardRow}>
                       <span style={{ ...s.batchCardTitle, color: selectedBatch === null ? '#1D4ED8' : '#374151', display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Zap size={12} /> Auto FIFO
+                        <Zap size={12} /> Auto {strategy === 'LIFO' ? 'LIFO' : 'FEFO'}
                       </span>
                       <span style={s.batchQtyBadge}>{itemInfo.qty} pcs total</span>
                     </div>
-                    <p style={s.batchAutoDesc}>Ambil dari batch exp. paling dekat otomatis</p>
+                    <p style={s.batchAutoDesc}>
+                      {strategy === 'LIFO'
+                        ? `Ambil dari batch exp. paling jauh${lifoBatch ? ` — ${lifoBatch}` : ''}`
+                        : 'Ambil dari batch exp. paling dekat otomatis'}
+                    </p>
                   </button>
+                  )}
 
                   {availableBatches.map(b => (
                     <button type="button" key={b.batch || '__default__'}
@@ -164,7 +190,7 @@ export default function StockOut() {
           {itemInfo && (
             <p style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
               Tersedia: {availableQty} pcs
-              {selectedBatch !== null && activeBatchInfo && ` (batch: ${activeBatchInfo.batch || 'default'})`}
+              {effectiveBatch !== null && effectiveBatchInfo && ` (batch: ${effectiveBatch || 'default'})`}
             </p>
           )}
         </div>
