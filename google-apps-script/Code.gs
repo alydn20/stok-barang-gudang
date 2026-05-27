@@ -453,11 +453,91 @@ function formatTgl(val) {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚙️ Stok Gudang')
-    .addItem('Setup Template (jalankan sekali)', 'setupSpreadsheet')
+    .addItem('✅ Terapkan Format Saja (Data Aman)', 'applyFormatOnly')
     .addItem('Refresh Semua Total (D/E/F)', 'refreshAllFormulas')
     .addItem('Refresh Conditional Formatting', 'applyConditionalFormatting')
+    .addSeparator()
+    .addItem('⚠️ Setup Template BARU (Hapus Semua Data)', 'setupSpreadsheet')
     .addToUi()
 }
+
+// ---- FORMAT SAJA (tidak hapus data) ----
+
+function applyFormatOnly() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet()
+  ss.setSpreadsheetTimeZone('Asia/Jakarta')
+  _formatMasterOnly(ss)
+  _formatTransaksiOnly(ss, SHEET_MASUK,  '#15803D', '#DCFCE7', '#F0FDF4')
+  _formatTransaksiOnly(ss, SHEET_KELUAR, '#B91C1C', '#FEE2E2', '#FFF1F2')
+  applyConditionalFormatting()
+  SpreadsheetApp.getUi().alert('✅ Format warna berhasil diterapkan. Data tidak dihapus.')
+}
+
+function _formatMasterOnly(ss) {
+  const sheet = ss.getSheetByName(SHEET_MASTER)
+  if (!sheet) return
+  const headerColor = '#1E3A5F'
+  const numCols = 10
+
+  sheet.getRange(1, 1, 1, numCols)
+    .setBackground(headerColor).setFontColor('#FFFFFF')
+    .setFontWeight('bold').setFontSize(11)
+    .setHorizontalAlignment('center').setVerticalAlignment('middle')
+    .setBorder(true,true,true,true,true,true,'#FFFFFF',SpreadsheetApp.BorderStyle.SOLID)
+  sheet.setRowHeight(1, 38)
+  sheet.setFrozenRows(1)
+
+  sheet.setColumnWidth(1, 150); sheet.setColumnWidth(2, 220); sheet.setColumnWidth(3, 90)
+  sheet.setColumnWidth(4, 110); sheet.setColumnWidth(5, 110); sheet.setColumnWidth(6, 100)
+  sheet.setColumnWidth(7, 120); sheet.setColumnWidth(8, 160); sheet.setColumnWidth(9, 130)
+  sheet.setColumnWidth(10, 120)
+
+  sheet.getRange('C:F').setNumberFormat('#,##0')
+  sheet.getRange('G:G').setNumberFormat('dd MMM yyyy')
+
+  try {
+    sheet.getBandings().forEach(b => b.remove())
+    const rows = Math.max(sheet.getLastRow(), 2)
+    const banding = sheet.getRange(1, 1, rows, numCols).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
+    banding.setHeaderRowColor(headerColor)
+    banding.setFirstRowColor('#EFF6FF')
+    banding.setSecondRowColor('#FFFFFF')
+  } catch(e) {}
+}
+
+function _formatTransaksiOnly(ss, name, headerColor, rowColor1, rowColor2) {
+  const sheet = ss.getSheetByName(name)
+  if (!sheet) return
+  const numCols = 6
+
+  sheet.getRange(1, 1, 1, numCols)
+    .setBackground(headerColor).setFontColor('#FFFFFF')
+    .setFontWeight('bold').setFontSize(11)
+    .setHorizontalAlignment('center').setVerticalAlignment('middle')
+  sheet.setRowHeight(1, 38)
+  sheet.setFrozenRows(1)
+
+  // Rename Keterangan → Catatan jika perlu
+  const e1 = sheet.getRange(1, 5).getValue().toString().trim()
+  if (e1 === 'Keterangan' || e1 === '') sheet.getRange(1, 5).setValue('Catatan')
+
+  sheet.setColumnWidth(1, 160); sheet.setColumnWidth(2, 150); sheet.setColumnWidth(3, 220)
+  sheet.setColumnWidth(4, 90);  sheet.setColumnWidth(5, 200); sheet.setColumnWidth(6, 130)
+
+  sheet.getRange('A:A').setNumberFormat('dd MMM yyyy HH:mm')
+  sheet.getRange('D:D').setNumberFormat('#,##0')
+
+  try {
+    sheet.getBandings().forEach(b => b.remove())
+    const rows = Math.max(sheet.getLastRow(), 2)
+    const banding = sheet.getRange(1, 1, rows, numCols).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
+    banding.setHeaderRowColor(headerColor)
+    banding.setFirstRowColor(rowColor1)
+    banding.setSecondRowColor(rowColor2)
+  } catch(e) {}
+}
+
+// ---- SETUP TEMPLATE (menghapus semua data) ----
 
 function setupSpreadsheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet()
