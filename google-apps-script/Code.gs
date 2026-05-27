@@ -4,8 +4,11 @@
 //
 // Master_Stok kolom:
 //   A: Kode    B: Nama    C: Stok Awal
-//   D: (kosong)  E: (kosong)  F: (kosong)
-//   G: Kadaluarsa   H: Posisi Rak   I: Kategori
+//   D: Total Masuk   E: Total Keluar   F: Stok Akhir
+//   G: Kadaluarsa    H: Posisi Rak     I: Kategori   J: No. Batch
+//
+// Barang_Masuk / Barang_Keluar kolom:
+//   A: Tanggal   B: Barcode   C: Nama   D: Qty   E: Catatan   F: No. Batch
 // ============================================================
 
 const SHEET_MASTER = 'Master_Stok'
@@ -53,72 +56,98 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON)
 }
 
-// ---- HELPER: hitung total per barcode dari sheet transaksi ----
+// ---- HELPER: key = "barcode|batch" atau "barcode" jika batch kosong ----
 
-function _sumByBarcode(sheet) {
+function _makeKey(barcode, batch) {
+  const b = (batch || '').toString().trim()
+  return b ? `${barcode}|${b}` : barcode.toString().trim()
+}
+
+// Hitung total qty per key dari sheet transaksi (kolom F = batch)
+function _sumByKey(sheet) {
   const result = {}
   if (!sheet || sheet.getLastRow() < 2) return result
-  sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues()
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues()
     .forEach(r => {
       const bc = r[1].toString().trim()
-      if (bc) result[bc] = (result[bc] || 0) + (Number(r[3]) || 0)
+      if (!bc) return
+      const key = _makeKey(bc, r[5])
+      result[key] = (result[key] || 0) + (Number(r[3]) || 0)
     })
   return result
 }
 
-// ---- SEARCH ----
+// ---- SEARCH — kembalikan semua batch untuk barcode ini ----
 
 function searchByBarcode(barcode) {
-  if (!barcode) return { found: false }
-  const ss     = SpreadsheetApp.getActiveSpreadsheet()
-  const sheet  = ss.getSheetByName(SHEET_MASTER)
-  if (!sheet || sheet.getLastRow() < 2) return { found: false }
+  if (!barcode) return { found: false, batches: [] }
+  const ss    = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet = ss.getSheetByName(SHEET_MASTER)
+  if (!sheet || sheet.getLastRow() < 2) return { found: false, batches: [] }
 
-  const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
-  const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
+  const totMasuk  = _sumByKey(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByKey(ss.getSheetByName(SHEET_KELUAR))
 
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues()
-  for (const r of data) {
-    if (r[0].toString().trim() === barcode.toString().trim()) {
-      const bc  = r[0].toString()
-      const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
-      return {
-        found:    true,
-        barcode:  bc,
-        nama:     r[1].toString(),
-        qty:      qty.toString(),
-        exp:      r[6] ? formatTgl(r[6]) : '',
-        posisi:   r[7].toString(),
-        kategori: r[8] ? r[8].toString() : '',
-      }
-    }
+  const batches = []
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues().forEach(r => {
+    if (r[0].toString().trim() !== barcode.toString().trim()) return
+    const bc    = r[0].toString().trim()
+    const batch = r[9] ? r[9].toString().trim() : ''
+    const key   = _makeKey(bc, batch)
+    const qty   = (Number(r[2]) || 0) + (totMasuk[key] || 0) - (totKeluar[key] || 0)
+    batches.push({
+      barcode:  bc,
+      nama:     r[1].toString(),
+      stokAwal: Number(r[2]) || 0,
+      qty:      qty.toString(),
+      exp:      r[6] ? formatTgl(r[6]) : '',
+      posisi:   r[7].toString(),
+      kategori: r[8] ? r[8].toString() : '',
+      batch:    batch,
+    })
+  })
+
+  if (batches.length === 0) return { found: false, batches: [] }
+
+  const totalQty = batches.reduce((s, b) => s + Number(b.qty), 0)
+  return {
+    found:    true,
+    batches,
+    barcode:  batches[0].barcode,
+    nama:     batches[0].nama,
+    qty:      totalQty.toString(),
+    exp:      batches[0].exp,
+    posisi:   batches[0].posisi,
+    kategori: batches[0].kategori,
   }
-  return { found: false }
 }
 
 // ---- ALL STOCK ----
 
 function getAllStock() {
-  const ss     = SpreadsheetApp.getActiveSpreadsheet()
-  const sheet  = ss.getSheetByName(SHEET_MASTER)
+  const ss    = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet = ss.getSheetByName(SHEET_MASTER)
   if (!sheet || sheet.getLastRow() < 2) return { items: [] }
 
-  const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
-  const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
+  const totMasuk  = _sumByKey(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByKey(ss.getSheetByName(SHEET_KELUAR))
 
-  const items = sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues()
+  const items = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues()
     .filter(r => r[0])
     .map(r => {
-      const bc  = r[0].toString()
-      const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
+      const bc    = r[0].toString().trim()
+      const batch = r[9] ? r[9].toString().trim() : ''
+      const key   = _makeKey(bc, batch)
+      const qty   = (Number(r[2]) || 0) + (totMasuk[key] || 0) - (totKeluar[key] || 0)
       return {
-        barcode:   bc,
-        nama:      r[1].toString(),
-        stokAwal:  Number(r[2]) || 0,
-        qty:       qty.toString(),
-        exp:       r[6] ? formatTgl(r[6]) : '',
-        posisi:    r[7].toString(),
-        kategori:  r[8] ? r[8].toString() : '',
+        barcode:  bc,
+        nama:     r[1].toString(),
+        stokAwal: Number(r[2]) || 0,
+        qty:      qty.toString(),
+        exp:      r[6] ? formatTgl(r[6]) : '',
+        posisi:   r[7].toString(),
+        kategori: r[8] ? r[8].toString() : '',
+        batch:    batch,
       }
     })
   return { items }
@@ -133,22 +162,24 @@ function getHistory(barcode) {
   const history  = []
 
   if (sheetIn && sheetIn.getLastRow() > 1) {
-    sheetIn.getRange(2, 1, sheetIn.getLastRow() - 1, 5).getValues()
+    sheetIn.getRange(2, 1, sheetIn.getLastRow() - 1, 6).getValues()
       .filter(r => !barcode || r[1].toString().trim() === barcode.toString().trim())
       .forEach(r => history.push({
         tanggal: r[0] ? new Date(r[0]).toISOString() : '',
         tipe: 'MASUK', barcode: r[1].toString(),
-        nama: r[2].toString(), qty: r[3].toString(), catatan: r[4].toString(),
+        nama: r[2].toString(), qty: r[3].toString(),
+        catatan: r[4].toString(), batch: r[5] ? r[5].toString() : '',
       }))
   }
 
   if (sheetOut && sheetOut.getLastRow() > 1) {
-    sheetOut.getRange(2, 1, sheetOut.getLastRow() - 1, 5).getValues()
+    sheetOut.getRange(2, 1, sheetOut.getLastRow() - 1, 6).getValues()
       .filter(r => !barcode || r[1].toString().trim() === barcode.toString().trim())
       .forEach(r => history.push({
         tanggal: r[0] ? new Date(r[0]).toISOString() : '',
         tipe: 'KELUAR', barcode: r[1].toString(),
-        nama: r[2].toString(), qty: r[3].toString(), catatan: r[4].toString(),
+        nama: r[2].toString(), qty: r[3].toString(),
+        catatan: r[4].toString(), batch: r[5] ? r[5].toString() : '',
       }))
   }
 
@@ -159,87 +190,124 @@ function getHistory(barcode) {
 // ---- STOCK IN ----
 
 function stockIn(data) {
-  const { barcode, nama, qty, exp, posisi, catatan, tanggal, kategori, stokAwal } = data
+  const { barcode, nama, qty, exp, posisi, catatan, tanggal, kategori, stokAwal, batch } = data
   const ss      = SpreadsheetApp.getActiveSpreadsheet()
   const sheetIn = ss.getSheetByName(SHEET_MASUK)
   if (!sheetIn) return { success: false, error: 'Sheet Barang_Masuk tidak ditemukan.' }
 
   sheetIn.appendRow([
     tanggal ? new Date(tanggal) : new Date(),
-    barcode, nama || '', Number(qty) || 0, catatan || ''
+    barcode, nama || '', Number(qty) || 0, catatan || '', batch || ''
   ])
 
-  upsertMaster(barcode, nama, exp, posisi, stokAwal !== undefined ? Number(stokAwal) : undefined, kategori)
+  upsertMaster(barcode, nama, exp, posisi, stokAwal !== undefined ? Number(stokAwal) : undefined, kategori, batch || '')
   return { success: true }
 }
 
 // ---- STOCK OUT ----
 
 function stockOut(data) {
-  const { barcode, qty, catatan, tanggal } = data
+  const { barcode, qty, catatan, tanggal, batch } = data
   const ss       = SpreadsheetApp.getActiveSpreadsheet()
   const sheetOut = ss.getSheetByName(SHEET_KELUAR)
   if (!sheetOut) return { success: false, error: 'Sheet Barang_Keluar tidak ditemukan.' }
 
-  // Cek stok aktual
   const info = searchByBarcode(barcode)
-  if (info.found && Number(info.qty) < Number(qty)) {
-    return { success: false, error: `Stok tidak cukup. Tersedia: ${info.qty} pcs.` }
+  if (!info.found) return { success: false, error: 'Barang tidak ditemukan.' }
+
+  let targetBatch = (batch || '').trim()
+  let itemName    = info.nama
+
+  if (batch) {
+    // Batch spesifik dipilih user
+    const batchInfo = info.batches.find(b => b.batch === targetBatch)
+    if (!batchInfo) return { success: false, error: `Batch "${batch}" tidak ditemukan.` }
+    if (Number(batchInfo.qty) < Number(qty))
+      return { success: false, error: `Stok batch ini tidak cukup. Tersedia: ${batchInfo.qty} pcs.` }
+    itemName = batchInfo.nama
+  } else {
+    // Auto FIFO: pilih batch dengan exp paling dekat yang masih ada stok
+    const available = info.batches
+      .filter(b => Number(b.qty) > 0)
+      .sort((a, b) => {
+        if (!a.exp && !b.exp) return 0
+        if (!a.exp) return 1
+        if (!b.exp) return -1
+        return new Date(a.exp) - new Date(b.exp)
+      })
+    if (available.length === 0) return { success: false, error: 'Stok tidak tersedia.' }
+    if (Number(available[0].qty) < Number(qty))
+      return { success: false, error: `Stok tidak cukup. Tersedia: ${available[0].qty} pcs (batch ${available[0].batch || 'default'}).` }
+    targetBatch = available[0].batch
+    itemName    = available[0].nama
   }
 
   sheetOut.appendRow([
     tanggal ? new Date(tanggal) : new Date(),
-    barcode, info.nama || '', Number(qty) || 0, catatan || ''
+    barcode, itemName, Number(qty) || 0, catatan || '', targetBatch
   ])
-  upsertMaster(barcode, null, null, null, undefined, undefined)
+  upsertMaster(barcode, null, null, null, undefined, undefined, targetBatch)
   return { success: true }
 }
 
 // ---- UPDATE / ADD ITEM ----
 
-function updateItem(data) { return upsertMaster(data.barcode, data.nama, data.exp, data.posisi, data.stokAwal !== undefined ? Number(data.stokAwal) : undefined, data.kategori) }
-function addItem(data)    { return upsertMaster(data.barcode, data.nama || 'BARANG BARU', data.exp, data.posisi, Number(data.qty) || 0, data.kategori) }
+function updateItem(data) {
+  return upsertMaster(
+    data.barcode, data.nama, data.exp, data.posisi,
+    data.stokAwal !== undefined ? Number(data.stokAwal) : undefined,
+    data.kategori, data.batch || ''
+  )
+}
+function addItem(data) {
+  return upsertMaster(
+    data.barcode, data.nama || 'BARANG BARU', data.exp, data.posisi,
+    Number(data.qty) || 0, data.kategori, data.batch || ''
+  )
+}
 
 // ---- UPSERT MASTER STOK ----
 
-function upsertMaster(barcode, nama, exp, posisi, stokAwal, kategori) {
+function upsertMaster(barcode, nama, exp, posisi, stokAwal, kategori, batch) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
   if (!sheet) return { success: false, error: 'Master_Stok tidak ditemukan.' }
 
-  const lastRow = sheet.getLastRow()
+  const batchVal = (batch || '').toString().trim()
+  const lastRow  = sheet.getLastRow()
 
   if (lastRow > 1) {
-    const kodes = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
-    for (let i = 0; i < kodes.length; i++) {
-      if (kodes[i][0].toString().trim() === barcode.toString().trim()) {
+    const data = sheet.getRange(2, 1, lastRow - 1, 10).getValues()
+    for (let i = 0; i < data.length; i++) {
+      const rowBC    = data[i][0].toString().trim()
+      const rowBatch = data[i][9] ? data[i][9].toString().trim() : ''
+      if (rowBC === barcode.toString().trim() && rowBatch === batchVal) {
         const row = i + 2
-        if (nama)                       sheet.getRange(row, 2).setValue(nama)
-        if (stokAwal !== undefined)     sheet.getRange(row, 3).setValue(Number(stokAwal) || 0)
-        if (exp !== undefined && exp)   sheet.getRange(row, 7).setValue(exp)
-        if (posisi)                     sheet.getRange(row, 8).setValue(posisi)
-        if (kategori !== undefined)     sheet.getRange(row, 9).setValue(kategori || '')
-        _updateRowTotals(sheet, barcode.toString().trim(), row)
+        if (nama)                     sheet.getRange(row, 2).setValue(nama)
+        if (stokAwal !== undefined)   sheet.getRange(row, 3).setValue(Number(stokAwal) || 0)
+        if (exp !== undefined && exp) sheet.getRange(row, 7).setValue(exp)
+        if (posisi)                   sheet.getRange(row, 8).setValue(posisi)
+        if (kategori !== undefined)   sheet.getRange(row, 9).setValue(kategori || '')
+        _updateRowTotals(sheet, barcode.toString().trim(), batchVal, row)
         return { success: true }
       }
     }
   }
 
-  const newRow = sheet.getLastRow() + 1
-  sheet.appendRow([
-    barcode, nama || 'BARANG BARU', stokAwal !== undefined ? stokAwal : 0,
-    0, 0, stokAwal !== undefined ? stokAwal : 0, exp || '', posisi || '', kategori || ''
-  ])
-  _updateRowTotals(sheet, barcode.toString().trim(), newRow)
+  const newRow  = sheet.getLastRow() + 1
+  const saVal   = stokAwal !== undefined ? Number(stokAwal) : 0
+  sheet.appendRow([barcode, nama || 'BARANG BARU', saVal, 0, 0, saVal, exp || '', posisi || '', kategori || '', batchVal])
+  _updateRowTotals(sheet, barcode.toString().trim(), batchVal, newRow)
   return { success: true }
 }
 
-function _updateRowTotals(sheet, barcode, row) {
+function _updateRowTotals(sheet, barcode, batch, row) {
   const ss        = SpreadsheetApp.getActiveSpreadsheet()
-  const totMasuk  = _sumByBarcode(ss.getSheetByName(SHEET_MASUK))
-  const totKeluar = _sumByBarcode(ss.getSheetByName(SHEET_KELUAR))
+  const key       = _makeKey(barcode, batch)
+  const totMasuk  = _sumByKey(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByKey(ss.getSheetByName(SHEET_KELUAR))
   const stokAwal  = Number(sheet.getRange(row, 3).getValue()) || 0
-  const masuk     = totMasuk[barcode]  || 0
-  const keluar    = totKeluar[barcode] || 0
+  const masuk     = totMasuk[key]  || 0
+  const keluar    = totKeluar[key] || 0
   sheet.getRange(row, 4).setValue(masuk)
   sheet.getRange(row, 5).setValue(keluar)
   sheet.getRange(row, 6).setValue(stokAwal + masuk - keluar)
@@ -251,10 +319,11 @@ function refreshAllFormulas() {
   const sheet = ss.getSheetByName(SHEET_MASTER)
   if (!sheet || sheet.getLastRow() < 2) return
   const lastRow = sheet.getLastRow()
-  const kodes   = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
-  for (let i = 0; i < kodes.length; i++) {
-    const bc = kodes[i][0].toString().trim()
-    if (bc) _updateRowTotals(sheet, bc, i + 2)
+  const data    = sheet.getRange(2, 1, lastRow - 1, 10).getValues()
+  for (let i = 0; i < data.length; i++) {
+    const bc    = data[i][0].toString().trim()
+    const batch = data[i][9] ? data[i][9].toString().trim() : ''
+    if (bc) _updateRowTotals(sheet, bc, batch, i + 2)
   }
   SpreadsheetApp.getUi().alert(`✅ Total stok diperbarui untuk ${lastRow - 1} baris.`)
 }
@@ -262,18 +331,20 @@ function refreshAllFormulas() {
 // ---- DELETE ITEM ----
 
 function deleteItem(data) {
-  const { barcode } = data
+  const { barcode, batch } = data
   if (!barcode) return { success: false, error: 'Barcode diperlukan.' }
+  const batchVal = (batch || '').toString().trim()
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MASTER)
   if (!sheet) return { success: false, error: 'Master_Stok tidak ditemukan.' }
-
   const lastRow = sheet.getLastRow()
   if (lastRow < 2) return { success: false, error: 'Barang tidak ditemukan.' }
 
-  const kodes = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
-  for (let i = 0; i < kodes.length; i++) {
-    if (kodes[i][0].toString().trim() === barcode.toString().trim()) {
+  const rows = sheet.getRange(2, 1, lastRow - 1, 10).getValues()
+  for (let i = 0; i < rows.length; i++) {
+    const rowBC    = rows[i][0].toString().trim()
+    const rowBatch = rows[i][9] ? rows[i][9].toString().trim() : ''
+    if (rowBC === barcode.toString().trim() && rowBatch === batchVal) {
       sheet.deleteRow(i + 2)
       return { success: true }
     }
@@ -291,35 +362,33 @@ function getStats(params) {
   const startDate = params && params.startDate ? new Date(params.startDate) : null
   const endDate   = params && params.endDate   ? new Date(params.endDate)   : null
 
-  const totMasuk  = _sumByBarcode(sheetIn)
-  const totKeluar = _sumByBarcode(sheetOut)
+  const totMasuk  = _sumByKey(sheetIn)
+  const totKeluar = _sumByKey(sheetOut)
 
   let totalItem = 0, totalStok = 0, lowStock = 0, expiringSoon = 0, expired = 0
   const today = new Date(); today.setHours(0,0,0,0)
   const in30  = new Date(today); in30.setDate(today.getDate() + 30)
 
   if (sheet && sheet.getLastRow() > 1) {
-    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues().filter(r => r[0])
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues().filter(r => r[0])
     totalItem = rows.length
     rows.forEach(r => {
-      const bc  = r[0].toString()
-      const qty = (Number(r[2]) || 0) + (totMasuk[bc] || 0) - (totKeluar[bc] || 0)
+      const bc    = r[0].toString().trim()
+      const batch = r[9] ? r[9].toString().trim() : ''
+      const key   = _makeKey(bc, batch)
+      const qty   = (Number(r[2]) || 0) + (totMasuk[key] || 0) - (totKeluar[key] || 0)
       totalStok += qty
-      if (qty <= 3)  lowStock++
+      if (qty <= 3) lowStock++
       if (r[6]) {
         const exp = new Date(r[6]); exp.setHours(0,0,0,0)
-        if (exp < today)          expired++
-        else if (exp <= in30)     expiringSoon++
+        if (exp < today)      expired++
+        else if (exp <= in30) expiringSoon++
       }
     })
   }
 
   return {
-    totalItem,
-    totalStok,
-    lowStock,
-    expiringSoon,
-    expired,
+    totalItem, totalStok, lowStock, expiringSoon, expired,
     todayMasuk:  _sumToday(sheetIn),
     todayKeluar: _sumToday(sheetOut),
     weeklyChart: _weeklyChart(sheetIn, sheetOut, startDate, endDate),
@@ -345,18 +414,15 @@ function _weeklyChart(sheetIn, sheetOut, startDate, endDate) {
   end.setHours(23,59,59,999)
   if (!startDate) start.setDate(end.getDate() - 6)
   start.setHours(0,0,0,0)
-
-  // Batasi maksimal 31 hari agar tidak terlalu banyak bar
   const diffDays = Math.round((end - start) / 86400000)
   if (diffDays > 31) start.setTime(end.getTime() - 31 * 86400000)
 
   const days = []
-  const cur = new Date(start)
+  const cur  = new Date(start)
   while (cur <= end) {
     days.push({ date: Utilities.formatDate(new Date(cur), tz, 'dd/MM'), masuk: 0, keluar: 0 })
     cur.setDate(cur.getDate() + 1)
   }
-
   function fill(sheet, key) {
     if (!sheet || sheet.getLastRow() < 2) return
     sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues().forEach(r => {
@@ -364,7 +430,7 @@ function _weeklyChart(sheetIn, sheetOut, startDate, endDate) {
       const d = new Date(r[0]); d.setHours(0,0,0,0)
       if (d < start || d > end) return
       const label = Utilities.formatDate(d, tz, 'dd/MM')
-      const slot = days.find(x => x.date === label)
+      const slot  = days.find(x => x.date === label)
       if (slot) slot[key] += (Number(r[3]) || 0)
     })
   }
@@ -376,21 +442,19 @@ function _weeklyChart(sheetIn, sheetOut, startDate, endDate) {
 // ---- UTIL ----
 
 function formatTgl(val) {
-  try {
-    return Utilities.formatDate(new Date(val), Session.getScriptTimeZone(), 'yyyy-MM-dd')
-  } catch { return val.toString() }
+  try { return Utilities.formatDate(new Date(val), Session.getScriptTimeZone(), 'yyyy-MM-dd') }
+  catch { return val.toString() }
 }
 
 // ============================================================
-// SETUP TEMPLATE — jalankan SEKALI dari menu atau Run button
-// Membuat header, warna, lebar kolom, freeze, dan format
+// SETUP TEMPLATE
 // ============================================================
 
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚙️ Stok Gudang')
     .addItem('Setup Template (jalankan sekali)', 'setupSpreadsheet')
-    .addItem('Refresh Semua Formula (D/E/F)', 'refreshAllFormulas')
+    .addItem('Refresh Semua Total (D/E/F)', 'refreshAllFormulas')
     .addItem('Refresh Conditional Formatting', 'applyConditionalFormatting')
     .addToUi()
 }
@@ -398,71 +462,58 @@ function onOpen() {
 function setupSpreadsheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet()
   ss.setSpreadsheetTimeZone('Asia/Jakarta')
-
   _setupMaster(ss)
   _setupMasuk(ss)
   _setupKeluar(ss)
-
-  // Urutkan tab
   const order = [SHEET_MASTER, SHEET_MASUK, SHEET_KELUAR]
   order.forEach((name, i) => {
     const s = ss.getSheetByName(name)
     if (s) ss.setActiveSheet(s), ss.moveActiveSheet(i + 1)
   })
-
   ss.getSheetByName(SHEET_MASTER).activate()
   SpreadsheetApp.getUi().alert('✅ Template berhasil diterapkan!')
 }
 
-// ---- MASTER STOK ----
-
 function _setupMaster(ss) {
   let sheet = ss.getSheetByName(SHEET_MASTER)
   if (!sheet) sheet = ss.insertSheet(SHEET_MASTER)
-
   sheet.clear()
   sheet.clearConditionalFormatRules()
 
-  // ── Header ──
-  const headers = [
-    'Kode Barcode','Nama Barang','Stok Awal',
-    'Total Masuk','Total Keluar','Stok Akhir',
-    'Kadaluarsa','Posisi Rak','Kategori'
-  ]
-  const hRange = sheet.getRange(1, 1, 1, headers.length)
+  const headers = ['Kode Barcode','Nama Barang','Stok Awal','Total Masuk','Total Keluar','Stok Akhir','Kadaluarsa','Posisi Rak','Kategori','No. Batch']
+  const hRange  = sheet.getRange(1, 1, 1, headers.length)
   hRange.setValues([headers])
-       .setBackground('#1E3A5F')
-       .setFontColor('#FFFFFF')
-       .setFontWeight('bold')
-       .setFontSize(11)
-       .setHorizontalAlignment('center')
-       .setVerticalAlignment('middle')
+       .setBackground('#1E3A5F').setFontColor('#FFFFFF')
+       .setFontWeight('bold').setFontSize(11)
+       .setHorizontalAlignment('center').setVerticalAlignment('middle')
   sheet.setRowHeight(1, 38)
   sheet.setFrozenRows(1)
 
-  // ── Lebar kolom ──
-  sheet.setColumnWidth(1, 150)   // Kode
-  sheet.setColumnWidth(2, 220)   // Nama
-  sheet.setColumnWidth(3, 90)    // Stok Awal
-  sheet.setColumnWidth(4, 110)   // Total Masuk
-  sheet.setColumnWidth(5, 110)   // Total Keluar
-  sheet.setColumnWidth(6, 100)   // Stok Akhir
-  sheet.setColumnWidth(7, 120)   // Kadaluarsa
-  sheet.setColumnWidth(8, 160)   // Posisi Rak
-  sheet.setColumnWidth(9, 130)   // Kategori
+  sheet.setColumnWidth(1, 150)
+  sheet.setColumnWidth(2, 220)
+  sheet.setColumnWidth(3, 90)
+  sheet.setColumnWidth(4, 110)
+  sheet.setColumnWidth(5, 110)
+  sheet.setColumnWidth(6, 100)
+  sheet.setColumnWidth(7, 120)
+  sheet.setColumnWidth(8, 160)
+  sheet.setColumnWidth(9, 130)
+  sheet.setColumnWidth(10, 120)
 
-  // ── Format kolom angka ──
   sheet.getRange('C:F').setNumberFormat('#,##0')
   sheet.getRange('G:G').setNumberFormat('dd MMM yyyy')
 
-  // ── Conditional formatting ──
+  try {
+    sheet.getBandings().forEach(b => b.remove())
+    const banding = sheet.getRange(1, 1, 500, headers.length).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
+    banding.setHeaderRowColor('#1E3A5F')
+    banding.setFirstRowColor('#EFF6FF')
+    banding.setSecondRowColor('#FFFFFF')
+  } catch(e) {}
+
   applyConditionalFormatting()
-
-  // ── Border header ──
   hRange.setBorder(true, true, true, true, true, true, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID)
-
-  // ── Proteksi header ──
-  const prot = sheet.getRange('A1:I1').protect().setDescription('Header terkunci')
+  const prot = sheet.getRange('A1:J1').protect().setDescription('Header terkunci')
   prot.setWarningOnly(true)
 }
 
@@ -472,54 +523,63 @@ function applyConditionalFormatting() {
   sheet.clearConditionalFormatRules()
   const rules = []
   const maxRow = 500
+  const fullRow = `A2:J${maxRow}`
 
-  // Stok Akhir ≤ 3 → merah muda (kolom F)
+  // Stok akhir cell — bold+red (prioritas tertinggi kolom F)
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenNumberLessThanOrEqualTo(3)
     .setBackground('#FEE2E2').setFontColor('#991B1B').setBold(true)
-    .setRanges([sheet.getRange(`F2:F${maxRow}`)])
-    .build())
+    .setRanges([sheet.getRange(`F2:F${maxRow}`)]).build())
 
-  // Stok Akhir 4–10 → kuning (kolom F)
+  // Seluruh baris — stok rendah (merah muda)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied(`=$F2<=3`)
+    .setBackground('#FEF2F2')
+    .setRanges([sheet.getRange(fullRow)]).build())
+
+  // Stok sedang 4-10
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenNumberBetween(4, 10)
     .setBackground('#FEF9C3').setFontColor('#854D0E')
-    .setRanges([sheet.getRange(`F2:F${maxRow}`)])
-    .build())
+    .setRanges([sheet.getRange(`F2:F${maxRow}`)]).build())
 
-  // Kadaluarsa sudah lewat → abu (kolom G)
+  // Kadaluarsa cell — strikethrough
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenDateBefore(SpreadsheetApp.RelativeDate.TODAY)
     .setBackground('#F1F5F9').setFontColor('#94A3B8').setStrikethrough(true)
-    .setRanges([sheet.getRange(`G2:G${maxRow}`)])
-    .build())
+    .setRanges([sheet.getRange(`G2:G${maxRow}`)]).build())
 
-  // Kadaluarsa dalam 30 hari → oranye (kolom G)
+  // Seluruh baris — sudah kadaluarsa (abu-abu)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied(`=AND($G2<>"", $G2<TODAY())`)
+    .setBackground('#F8FAFC').setFontColor('#94A3B8')
+    .setRanges([sheet.getRange(fullRow)]).build())
+
+  // Kadaluarsa cell — segera exp (bold+orange)
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied(`=AND(G2>=TODAY(), G2<=TODAY()+30)`)
     .setBackground('#FFF7ED').setFontColor('#C2410C').setBold(true)
-    .setRanges([sheet.getRange(`G2:G${maxRow}`)])
-    .build())
+    .setRanges([sheet.getRange(`G2:G${maxRow}`)]).build())
+
+  // Seluruh baris — segera kadaluarsa (kuning muda)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied(`=AND($G2>=TODAY(), $G2<=TODAY()+30)`)
+    .setBackground('#FFFBEB')
+    .setRanges([sheet.getRange(fullRow)]).build())
 
   sheet.setConditionalFormatRules(rules)
 }
 
-// ---- BARANG MASUK ----
-
-function _setupMasuk(ss) {
-  let sheet = ss.getSheetByName(SHEET_MASUK)
-  if (!sheet) sheet = ss.insertSheet(SHEET_MASUK)
+function _setupSheet(ss, name, headers, headerColor, rowColor1, rowColor2) {
+  let sheet = ss.getSheetByName(name)
+  if (!sheet) sheet = ss.insertSheet(name)
   sheet.clear()
 
-  const headers = ['Tanggal & Waktu','Kode Barcode','Nama Barang','Qty Masuk','Keterangan']
-  const hRange  = sheet.getRange(1, 1, 1, headers.length)
+  const hRange = sheet.getRange(1, 1, 1, headers.length)
   hRange.setValues([headers])
-       .setBackground('#14532D')
-       .setFontColor('#FFFFFF')
-       .setFontWeight('bold')
-       .setFontSize(11)
-       .setHorizontalAlignment('center')
-       .setVerticalAlignment('middle')
+       .setBackground(headerColor).setFontColor('#FFFFFF')
+       .setFontWeight('bold').setFontSize(11)
+       .setHorizontalAlignment('center').setVerticalAlignment('middle')
   sheet.setRowHeight(1, 38)
   sheet.setFrozenRows(1)
 
@@ -528,52 +588,27 @@ function _setupMasuk(ss) {
   sheet.setColumnWidth(3, 220)
   sheet.setColumnWidth(4, 90)
   sheet.setColumnWidth(5, 200)
+  sheet.setColumnWidth(6, 130)
 
   sheet.getRange('A:A').setNumberFormat('dd MMM yyyy HH:mm')
   sheet.getRange('D:D').setNumberFormat('#,##0')
 
-  // Alternating row color via banding
-  const dataRange = sheet.getRange(1, 1, 500, 5)
   try {
-    const banding = dataRange.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
-    banding.setHeaderRowColor('#14532D')
-    banding.setFirstRowColor('#F0FDF4')
-    banding.setSecondRowColor('#FFFFFF')
+    const banding = sheet.getRange(1, 1, 500, headers.length).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
+    banding.setHeaderRowColor(headerColor)
+    banding.setFirstRowColor(rowColor1)
+    banding.setSecondRowColor(rowColor2)
   } catch(e) {}
 }
 
-// ---- BARANG KELUAR ----
+function _setupMasuk(ss) {
+  _setupSheet(ss, SHEET_MASUK,
+    ['Tanggal & Waktu','Kode Barcode','Nama Barang','Qty Masuk','Catatan','No. Batch'],
+    '#15803D', '#DCFCE7', '#F0FDF4')
+}
 
 function _setupKeluar(ss) {
-  let sheet = ss.getSheetByName(SHEET_KELUAR)
-  if (!sheet) sheet = ss.insertSheet(SHEET_KELUAR)
-  sheet.clear()
-
-  const headers = ['Tanggal & Waktu','Kode Barcode','Nama Barang','Qty Keluar','Keterangan']
-  const hRange  = sheet.getRange(1, 1, 1, headers.length)
-  hRange.setValues([headers])
-       .setBackground('#7F1D1D')
-       .setFontColor('#FFFFFF')
-       .setFontWeight('bold')
-       .setFontSize(11)
-       .setHorizontalAlignment('center')
-       .setVerticalAlignment('middle')
-  sheet.setRowHeight(1, 38)
-  sheet.setFrozenRows(1)
-
-  sheet.setColumnWidth(1, 160)
-  sheet.setColumnWidth(2, 150)
-  sheet.setColumnWidth(3, 220)
-  sheet.setColumnWidth(4, 90)
-  sheet.setColumnWidth(5, 200)
-
-  sheet.getRange('A:A').setNumberFormat('dd MMM yyyy HH:mm')
-  sheet.getRange('D:D').setNumberFormat('#,##0')
-
-  try {
-    const banding = sheet.getRange(1, 1, 500, 5).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY)
-    banding.setHeaderRowColor('#7F1D1D')
-    banding.setFirstRowColor('#FFF1F2')
-    banding.setSecondRowColor('#FFFFFF')
-  } catch(e) {}
+  _setupSheet(ss, SHEET_KELUAR,
+    ['Tanggal & Waktu','Kode Barcode','Nama Barang','Qty Keluar','Catatan','No. Batch'],
+    '#B91C1C', '#FEE2E2', '#FFF1F2')
 }

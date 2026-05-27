@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { RefreshCw, Search, MapPin, Calendar, AlertTriangle, Package, Loader2, LayoutList, Pencil, Trash2, X, Check, Download, Tag } from 'lucide-react'
+import { RefreshCw, Search, MapPin, Calendar, AlertTriangle, Package, Loader2, LayoutList, Pencil, Trash2, X, Check, Download, Tag, Layers } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
 const STATUS_FILTERS = [
@@ -48,7 +48,7 @@ export default function StockList() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return items
-      .filter(i => !q || i.nama?.toLowerCase().includes(q) || i.barcode?.includes(q) || i.posisi?.toLowerCase().includes(q) || i.kategori?.toLowerCase().includes(q))
+      .filter(i => !q || i.nama?.toLowerCase().includes(q) || i.barcode?.includes(q) || i.posisi?.toLowerCase().includes(q) || i.kategori?.toLowerCase().includes(q) || i.batch?.toLowerCase().includes(q))
       .filter(i => {
         if (filter === 'low')      return Number(i.qty) <= 3
         if (filter === 'expiring') return i.exp && new Date(i.exp) <= soon && new Date(i.exp) >= today
@@ -67,7 +67,7 @@ export default function StockList() {
 
   // ---- EDIT ----
   const handleEdit = (item) => {
-    setEditItem({ ...item, _orig: item.barcode, stokAwal: item.stokAwal ?? '' })
+    setEditItem({ ...item, _orig: item.barcode, _origBatch: item.batch || '', stokAwal: item.stokAwal ?? '' })
     setStatusMsg(null)
   }
 
@@ -76,6 +76,7 @@ export default function StockList() {
     try {
       await sheetsApi.updateItem({
         barcode:  editItem._orig,
+        batch:    editItem._origBatch,
         nama:     editItem.nama,
         exp:      editItem.exp,
         posisi:   editItem.posisi,
@@ -83,9 +84,11 @@ export default function StockList() {
         stokAwal: editItem.stokAwal !== '' ? Number(editItem.stokAwal) : undefined,
       })
       setStatusMsg({ type: 'success', msg: 'Berhasil disimpan.' })
-      setItems(prev => prev.map(i => i.barcode === editItem._orig
-        ? { ...i, nama: editItem.nama, exp: editItem.exp, posisi: editItem.posisi, kategori: editItem.kategori, stokAwal: editItem.stokAwal }
-        : i))
+      setItems(prev => prev.map(i =>
+        (i.barcode === editItem._orig && (i.batch || '') === editItem._origBatch)
+          ? { ...i, nama: editItem.nama, exp: editItem.exp, posisi: editItem.posisi, kategori: editItem.kategori, stokAwal: editItem.stokAwal }
+          : i
+      ))
       setTimeout(() => { setEditItem(null); setStatusMsg(null) }, 800)
     } catch (e) {
       setStatusMsg({ type: 'error', msg: e.message })
@@ -96,8 +99,10 @@ export default function StockList() {
   const handleDelete = async () => {
     setSaving(true); setStatusMsg(null)
     try {
-      await sheetsApi.deleteItem({ barcode: delItem.barcode })
-      setItems(prev => prev.filter(i => i.barcode !== delItem.barcode))
+      await sheetsApi.deleteItem({ barcode: delItem.barcode, batch: delItem.batch || '' })
+      setItems(prev => prev.filter(i =>
+        !(i.barcode === delItem.barcode && (i.batch || '') === (delItem.batch || ''))
+      ))
       setDelItem(null)
     } catch (e) {
       setStatusMsg({ type: 'error', msg: e.message })
@@ -107,10 +112,10 @@ export default function StockList() {
   // ---- EXPORT CSV ----
   const exportCSV = () => {
     const rows = [
-      ['Barcode', 'Nama', 'Stok', 'Kategori', 'Kadaluarsa', 'Posisi Rak'],
-      ...filtered.map(i => [i.barcode, i.nama, i.qty, i.kategori, i.exp, i.posisi]),
+      ['Barcode', 'Nama', 'Batch', 'Stok', 'Kategori', 'Kadaluarsa', 'Posisi Rak'],
+      ...filtered.map(i => [i.barcode, i.nama, i.batch, i.qty, i.kategori, i.exp, i.posisi]),
     ]
-    const csv = rows.map(r => r.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n')
+    const csv  = rows.map(r => r.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a'); a.href = url
@@ -146,7 +151,7 @@ export default function StockList() {
           className="input"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Cari nama, barcode, posisi, kategori..."
+          placeholder="Cari nama, barcode, batch, posisi..."
           style={{ paddingLeft: 38 }}
         />
       </div>
@@ -178,12 +183,8 @@ export default function StockList() {
         </div>
       )}
 
-      {/* Count */}
-      {!loading && (
-        <p style={s.countText}>{filtered.length} barang ditemukan</p>
-      )}
+      {!loading && <p style={s.countText}>{filtered.length} barang ditemukan</p>}
 
-      {/* Content */}
       {loading ? (
         <div className="empty-state">
           <Loader2 size={36} color="#CBD5E1" className="spin" />
@@ -218,6 +219,9 @@ export default function StockList() {
                 </div>
                 <div style={s.itemMeta}>
                   <span style={s.metaCode}>{item.barcode}</span>
+                  {item.batch && (
+                    <span style={s.metaBatch}><Layers size={10} /> {item.batch}</span>
+                  )}
                   {item.kategori && (
                     <span style={s.metaKat}><Tag size={10} /> {item.kategori}</span>
                   )}
@@ -248,6 +252,11 @@ export default function StockList() {
             </div>
             <div style={s.modalBody}>
               <p style={s.modalBarcode}>{editItem.barcode}</p>
+              {editItem._origBatch && (
+                <p style={{ ...s.modalBarcode, color: '#7C3AED', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Layers size={11} /> Batch: {editItem._origBatch}
+                </p>
+              )}
 
               <label className="label">Nama Barang</label>
               <input className="input" value={editItem.nama}
@@ -298,11 +307,10 @@ export default function StockList() {
             </div>
             <div style={s.modalBody}>
               <p style={{ color: '#374151', fontSize: 14 }}>
-                Hapus <strong>{delItem.nama}</strong> ({delItem.barcode}) dari master stok?
+                Hapus <strong>{delItem.nama}</strong>
+                {delItem.batch ? <> (batch: <strong>{delItem.batch}</strong>)</> : <> ({delItem.barcode})</>} dari master stok?
               </p>
-              <p style={{ color: '#94A3B8', fontSize: 12, marginTop: 6 }}>
-                Riwayat transaksi tidak dihapus.
-              </p>
+              <p style={{ color: '#94A3B8', fontSize: 12, marginTop: 6 }}>Riwayat transaksi tidak dihapus.</p>
               {statusMsg && (
                 <div className="alert alert-danger fade-in" style={{ marginTop: 10 }}>{statusMsg.msg}</div>
               )}
@@ -321,35 +329,36 @@ export default function StockList() {
 }
 
 const s = {
-  headerRow:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  titleRow:    { display: 'flex', alignItems: 'center', gap: 10 },
-  titleIcon:   { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  title:       { fontSize: 20, fontWeight: 700, color: '#0F172A' },
-  iconBtn:     { width: 36, height: 36, background: '#F5F3FF', border: 'none', borderRadius: 10, cursor: 'pointer', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  searchWrap:  { position: 'relative', marginBottom: 10 },
-  searchIcon:  { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
-  filterRow:   { display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto', paddingBottom: 2, alignItems: 'center' },
-  chip:        { padding: '5px 13px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#64748B', whiteSpace: 'nowrap', flexShrink: 0 },
-  chipActive:  { background: '#7C3AED', color: '#fff', borderColor: '#7C3AED' },
+  headerRow:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  titleRow:     { display: 'flex', alignItems: 'center', gap: 10 },
+  titleIcon:    { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  title:        { fontSize: 20, fontWeight: 700, color: '#0F172A' },
+  iconBtn:      { width: 36, height: 36, background: '#F5F3FF', border: 'none', borderRadius: 10, cursor: 'pointer', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  searchWrap:   { position: 'relative', marginBottom: 10 },
+  searchIcon:   { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
+  filterRow:    { display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto', paddingBottom: 2, alignItems: 'center' },
+  chip:         { padding: '5px 13px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#64748B', whiteSpace: 'nowrap', flexShrink: 0 },
+  chipActive:   { background: '#7C3AED', color: '#fff', borderColor: '#7C3AED' },
   chipKatActive:{ background: '#2563EB', color: '#fff', borderColor: '#2563EB' },
-  countText:   { fontSize: 12, color: '#94A3B8', marginBottom: 10 },
-  list:        { display: 'flex', flexDirection: 'column', gap: 8 },
-  item:        { padding: '12px 14px', borderLeft: '4px solid #16A34A' },
-  itemTop:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  itemName:    { fontSize: 15, fontWeight: 600, color: '#1E293B', flex: 1, marginRight: 8 },
-  itemMeta:    { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  metaCode:    { fontSize: 12, color: '#94A3B8', fontFamily: 'monospace' },
-  metaItem:    { fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', gap: 3 },
-  metaKat:     { fontSize: 11, color: '#2563EB', background: '#EFF6FF', padding: '1px 7px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 3, fontWeight: 500 },
-  actionBtn:   { width: 26, height: 26, border: '1px solid #E2E8F0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 },
-  modal:       { background: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'auto' },
-  modalHeader:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px', borderBottom: '1px solid #E2E8F0' },
-  modalTitle:    { fontSize: 17, fontWeight: 700, color: '#0F172A' },
-  closeBtn:      { background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 },
-  modalBody:     { padding: '16px 20px' },
-  modalBarcode:  { fontSize: 12, color: '#94A3B8', fontFamily: 'monospace', marginBottom: 10 },
-  stokAwalHint:  { fontSize: 11, color: '#64748B', marginTop: 4 },
-  modalFooter:   { display: 'flex', gap: 10, padding: '12px 20px 20px' },
-  btnCancel:     { flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer' },
+  countText:    { fontSize: 12, color: '#94A3B8', marginBottom: 10 },
+  list:         { display: 'flex', flexDirection: 'column', gap: 8 },
+  item:         { padding: '12px 14px', borderLeft: '4px solid #16A34A' },
+  itemTop:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  itemName:     { fontSize: 15, fontWeight: 600, color: '#1E293B', flex: 1, marginRight: 8 },
+  itemMeta:     { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  metaCode:     { fontSize: 12, color: '#94A3B8', fontFamily: 'monospace' },
+  metaItem:     { fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', gap: 3 },
+  metaKat:      { fontSize: 11, color: '#2563EB', background: '#EFF6FF', padding: '1px 7px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 3, fontWeight: 500 },
+  metaBatch:    { fontSize: 11, color: '#7C3AED', background: '#F5F3FF', padding: '1px 7px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 3, fontWeight: 500 },
+  actionBtn:    { width: 26, height: 26, border: '1px solid #E2E8F0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 },
+  modal:        { background: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'auto' },
+  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px', borderBottom: '1px solid #E2E8F0' },
+  modalTitle:   { fontSize: 17, fontWeight: 700, color: '#0F172A' },
+  closeBtn:     { background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 },
+  modalBody:    { padding: '16px 20px' },
+  modalBarcode: { fontSize: 12, color: '#94A3B8', fontFamily: 'monospace', marginBottom: 10 },
+  stokAwalHint: { fontSize: 11, color: '#64748B', marginTop: 4 },
+  modalFooter:  { display: 'flex', gap: 10, padding: '12px 20px 20px' },
+  btnCancel:    { flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer' },
 }
