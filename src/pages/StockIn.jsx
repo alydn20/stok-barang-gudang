@@ -67,7 +67,7 @@ export default function StockIn() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.barcode) return setStatus({ type: 'error', msg: 'Barcode wajib diisi.' })
-    if (found !== false && !form.qty) return setStatus({ type: 'error', msg: 'Qty wajib diisi.' })
+    if (found !== false && (!form.qty || Number(form.qty) < 1)) return setStatus({ type: 'error', msg: 'Qty wajib diisi minimal 1.' })
     if (found === true && batchMode === 'new' && !form.batch.trim()) return setStatus({ type: 'error', msg: 'No. Batch wajib diisi untuk batch baru.' })
     setLoading(true); setStatus(null)
     try {
@@ -183,7 +183,7 @@ export default function StockIn() {
             {batchMode === 'new' && (
               <input className="input" value={form.batch}
                 onChange={e => set('batch', e.target.value)}
-                placeholder="cth: LOT-001, 2025-A (kosongkan jika tidak pakai batch)"
+                placeholder="Wajib diisi — cth: NO002, LOT-002, 2025-B"
                 style={{ marginTop: batches.length > 0 ? 0 : 4 }} />
             )}
           </div>
@@ -214,7 +214,7 @@ export default function StockIn() {
           <div style={{ flex: 1 }}>
             <label className="label">Qty Masuk (pcs) <span style={s.required}>*</span></label>
             <input className="input" type="number" min="1" value={form.qty}
-              onChange={e => set('qty', e.target.value)} placeholder="0" />
+              onChange={e => set('qty', e.target.value)} placeholder="1" />
           </div>
           )}
           <div style={{ flex: 1 }}>
