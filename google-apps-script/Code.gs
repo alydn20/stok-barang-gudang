@@ -123,34 +123,28 @@ function searchByBarcode(barcode) {
 }
 
 // ---- ALL STOCK ----
+// Membaca langsung dari kolom F (stok_akhir) yang sudah dihitung oleh _updateRowTotals.
+// TIDAK memanggil _sumByKey agar tidak membaca ribuan baris transaksi setiap kali.
 
 function getAllStock() {
   const ss    = SpreadsheetApp.getActiveSpreadsheet()
   const sheet = ss.getSheetByName(SHEET_MASTER)
-  if (!sheet || sheet.getLastRow() < 2) return { items: [] }
+  if (!sheet || sheet.getLastRow() < 2) return { items: [], total: 0 }
 
-  const totMasuk  = _sumByKey(ss.getSheetByName(SHEET_MASUK))
-  const totKeluar = _sumByKey(ss.getSheetByName(SHEET_KELUAR))
-
-  const items = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues()
+  const rows  = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues()
+  const items = rows
     .filter(r => r[0])
-    .map(r => {
-      const bc    = r[0].toString().trim()
-      const batch = r[9] ? r[9].toString().trim() : ''
-      const key   = _makeKey(bc, batch)
-      const qty   = (Number(r[2]) || 0) + (totMasuk[key] || 0) - (totKeluar[key] || 0)
-      return {
-        barcode:  bc,
-        nama:     r[1].toString(),
-        stokAwal: Number(r[2]) || 0,
-        qty:      qty.toString(),
-        exp:      r[6] ? formatTgl(r[6]) : '',
-        posisi:   r[7].toString(),
-        kategori: r[8] ? r[8].toString() : '',
-        batch:    batch,
-      }
-    })
-  return { items }
+    .map(r => ({
+      barcode:  r[0].toString().trim(),
+      nama:     r[1].toString(),
+      stokAwal: Number(r[2]) || 0,
+      qty:      (Number(r[5]) || 0).toString(),  // kolom F = stok_akhir (pre-computed)
+      exp:      r[6] ? formatTgl(r[6]) : '',
+      posisi:   r[7].toString(),
+      kategori: r[8] ? r[8].toString() : '',
+      batch:    r[9] ? r[9].toString().trim() : '',
+    }))
+  return { items, total: items.length }
 }
 
 // ---- HISTORY ----
@@ -318,19 +312,36 @@ function _updateRowTotals(sheet, barcode, batch, row) {
   sheet.getRange(row, 6).setValue(stokAwal + masuk - keluar)
 }
 
+// Batch-refresh semua total di Master_Stok — baca transaksi SEKALI, tulis balik SEKALI.
+// Jauh lebih cepat dari memanggil _updateRowTotals per baris.
+function _refreshAllTotalsBatch(ss) {
+  const master = ss.getSheetByName(SHEET_MASTER)
+  if (!master || master.getLastRow() < 2) return 0
+
+  const totMasuk  = _sumByKey(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByKey(ss.getSheetByName(SHEET_KELUAR))
+
+  const lastRow = master.getLastRow()
+  const data    = master.getRange(2, 1, lastRow - 1, 10).getValues()
+
+  const updates = data.map(r => {
+    if (!r[0]) return [0, 0, 0]
+    const key    = _makeKey(r[0].toString().trim(), r[9] ? r[9].toString().trim() : '')
+    const sa     = Number(r[2]) || 0
+    const masuk  = totMasuk[key]  || 0
+    const keluar = totKeluar[key] || 0
+    return [masuk, keluar, sa + masuk - keluar]
+  })
+
+  master.getRange(2, 4, updates.length, 3).setValues(updates)
+  return updates.length
+}
+
 // Jalankan dari menu untuk refresh semua baris
 function refreshAllFormulas() {
-  const ss    = SpreadsheetApp.getActiveSpreadsheet()
-  const sheet = ss.getSheetByName(SHEET_MASTER)
-  if (!sheet || sheet.getLastRow() < 2) return
-  const lastRow = sheet.getLastRow()
-  const data    = sheet.getRange(2, 1, lastRow - 1, 10).getValues()
-  for (let i = 0; i < data.length; i++) {
-    const bc    = data[i][0].toString().trim()
-    const batch = data[i][9] ? data[i][9].toString().trim() : ''
-    if (bc) _updateRowTotals(sheet, bc, batch, i + 2)
-  }
-  SpreadsheetApp.getUi().alert(`✅ Total stok diperbarui untuk ${lastRow - 1} baris.`)
+  const ss      = SpreadsheetApp.getActiveSpreadsheet()
+  const updated = _refreshAllTotalsBatch(ss)
+  SpreadsheetApp.getUi().alert(`✅ Total stok diperbarui untuk ${updated} baris.`)
 }
 
 // ---- DELETE ITEM ----
@@ -488,42 +499,30 @@ function perbaikiSemua() {
   _formatTransaksiOnly(ss, SHEET_KELUAR, '#B91C1C', '#FEE2E2', '#FFF1F2')
   applyConditionalFormatting()
 
-  // 2. Isi batch kosong dengan NO001
+  // 2. Batch-migrate empty batches (baca sekali, tulis sekali per sheet)
   let count = 0
+
+  function batchFillBatch(sheet, col) {
+    if (!sheet || sheet.getLastRow() < 2) return
+    const range = sheet.getRange(2, col, sheet.getLastRow() - 1, 1)
+    const vals  = range.getValues()
+    let changed = false
+    vals.forEach((r, i) => {
+      if (r[0].toString().trim() === '') { vals[i][0] = 'NO001'; count++; changed = true }
+    })
+    if (changed) range.setValues(vals)
+  }
+
   const master = ss.getSheetByName(SHEET_MASTER)
-  if (master && master.getLastRow() > 1) {
-    const vals = master.getRange(2, 10, master.getLastRow() - 1, 1).getValues()
-    vals.forEach((r, i) => {
-      if (r[0].toString().trim() === '') { master.getRange(i + 2, 10).setValue('NO001'); count++ }
-    })
-  }
-  const masuk = ss.getSheetByName(SHEET_MASUK)
-  if (masuk && masuk.getLastRow() > 1) {
-    const vals = masuk.getRange(2, 6, masuk.getLastRow() - 1, 1).getValues()
-    vals.forEach((r, i) => {
-      if (r[0].toString().trim() === '') { masuk.getRange(i + 2, 6).setValue('NO001'); count++ }
-    })
-  }
-  const keluar = ss.getSheetByName(SHEET_KELUAR)
-  if (keluar && keluar.getLastRow() > 1) {
-    const vals = keluar.getRange(2, 6, keluar.getLastRow() - 1, 1).getValues()
-    vals.forEach((r, i) => {
-      if (r[0].toString().trim() === '') { keluar.getRange(i + 2, 6).setValue('NO001'); count++ }
-    })
-  }
+  batchFillBatch(master, 10)
+  batchFillBatch(ss.getSheetByName(SHEET_MASUK),  6)
+  batchFillBatch(ss.getSheetByName(SHEET_KELUAR), 6)
 
-  // 3. Hitung ulang semua total di Master_Stok
+  // 3. Hitung ulang semua total — baca transaksi SEKALI, tulis balik SEKALI
   SpreadsheetApp.flush()
-  if (master && master.getLastRow() > 1) {
-    const data = master.getRange(2, 1, master.getLastRow() - 1, 10).getValues()
-    data.forEach((r, i) => {
-      const bc    = r[0].toString().trim()
-      const batch = r[9] ? r[9].toString().trim() : ''
-      if (bc) _updateRowTotals(master, bc, batch, i + 2)
-    })
-  }
+  const updated = _refreshAllTotalsBatch(ss)
 
-  ui.alert(`✅ Selesai!\n${count} baris batch diisi "NO001".\nSemua format & total stok sudah diperbarui.`)
+  ui.alert(`✅ Selesai!\n${count} baris batch diisi "NO001".\n${updated} baris stok diperbarui.`)
 }
 
 // ---- FORMAT SAJA (dipakai internal oleh perbaikiSemua & setupSpreadsheet) ----
