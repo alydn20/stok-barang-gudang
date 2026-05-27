@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Navbar from './components/Navbar'
 import InstallGate from './components/InstallGate'
+import UpdateGate from './components/UpdateGate'
 import Home from './pages/Home'
 import StockIn from './pages/StockIn'
 import StockOut from './pages/StockOut'
@@ -13,19 +14,21 @@ import Settings from './pages/Settings'
 export default function App() {
   return (
     <BrowserRouter>
-      <InstallGate>
-        <Layout>
-          <Routes>
-            <Route path="/"        element={<Home />}      />
-            <Route path="/masuk"   element={<StockIn />}   />
-            <Route path="/keluar"  element={<StockOut />}  />
-            <Route path="/cari"    element={<Search />}    />
-            <Route path="/stok"    element={<StockList />} />
-            <Route path="/settings"element={<Settings />}  />
-          </Routes>
-        </Layout>
-        <Navbar />
-      </InstallGate>
+      <UpdateGate>
+        <InstallGate>
+          <Layout>
+            <Routes>
+              <Route path="/"        element={<Home />}      />
+              <Route path="/masuk"   element={<StockIn />}   />
+              <Route path="/keluar"  element={<StockOut />}  />
+              <Route path="/cari"    element={<Search />}    />
+              <Route path="/stok"    element={<StockList />} />
+              <Route path="/settings"element={<Settings />}  />
+            </Routes>
+          </Layout>
+          <Navbar />
+        </InstallGate>
+      </UpdateGate>
     </BrowserRouter>
   )
 }

@@ -13,3 +13,8 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)))
 })
+
+// Terima perintah dari UpdateGate untuk aktifkan versi baru
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
