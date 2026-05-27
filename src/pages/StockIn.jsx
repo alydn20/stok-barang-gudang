@@ -67,11 +67,13 @@ export default function StockIn() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.barcode || !form.qty) return setStatus({ type: 'error', msg: 'Barcode dan qty wajib diisi.' })
+    if (!form.barcode) return setStatus({ type: 'error', msg: 'Barcode wajib diisi.' })
+    if (found !== false && !form.qty) return setStatus({ type: 'error', msg: 'Qty wajib diisi.' })
     setLoading(true); setStatus(null)
     try {
       await sheetsApi.stockIn({
         ...form,
+        qty:     found === false ? 0 : Number(form.qty),
         stokAwal: found === false && form.stokAwal !== '' ? Number(form.stokAwal) : undefined,
         tanggal: new Date().toISOString(),
       })
@@ -154,7 +156,7 @@ export default function StockIn() {
                   <Layers size={12} /> Batch Lama ({batches.length})
                 </button>
                 <button type="button"
-                  onClick={() => { setBatchMode('new'); setForm(f => ({ ...f, batch: 'NO001', exp: '', posisi: '', kategori: '' })) }}
+                  onClick={() => { setBatchMode('new'); setForm(f => ({ ...f, batch: '', exp: '', posisi: '', kategori: '' })) }}
                   style={{ ...s.batchTab, ...(batchMode === 'new' ? s.batchTabActive : {}) }}>
                   + Batch Baru
                 </button>
@@ -208,11 +210,13 @@ export default function StockIn() {
 
         {/* Qty & Exp */}
         <div style={s.row2}>
+          {found !== false && (
           <div style={{ flex: 1 }}>
             <label className="label">Qty Masuk (pcs) <span style={s.required}>*</span></label>
             <input className="input" type="number" min="1" value={form.qty}
-              onChange={e => set('qty', e.target.value)} placeholder="0" required />
+              onChange={e => set('qty', e.target.value)} placeholder="0" />
           </div>
+          )}
           <div style={{ flex: 1 }}>
             <label className="label">Tgl Kadaluarsa</label>
             <input className="input" type="date" value={form.exp}

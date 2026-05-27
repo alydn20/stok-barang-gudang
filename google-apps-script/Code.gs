@@ -195,11 +195,13 @@ function stockIn(data) {
   const sheetIn = ss.getSheetByName(SHEET_MASUK)
   if (!sheetIn) return { success: false, error: 'Sheet Barang_Masuk tidak ditemukan.' }
 
-  sheetIn.appendRow([
-    tanggal ? new Date(tanggal) : new Date(),
-    barcode, nama || '', Number(qty) || 0, catatan || '', batch || ''
-  ])
-  SpreadsheetApp.flush()
+  if (Number(qty) > 0) {
+    sheetIn.appendRow([
+      tanggal ? new Date(tanggal) : new Date(),
+      barcode, nama || '', Number(qty), catatan || '', batch || ''
+    ])
+    SpreadsheetApp.flush()
+  }
 
   upsertMaster(barcode, nama, exp, posisi, stokAwal !== undefined ? Number(stokAwal) : undefined, kategori, batch || '')
   return { success: true }
