@@ -4,7 +4,7 @@ import Scanner from '../components/Scanner'
 import { sheetsApi } from '../services/sheetsApi'
 
 const LS_STRATEGY = 'stockout_strategy'
-const getStrategy = () => localStorage.getItem(LS_STRATEGY) || 'FEFO'
+const getStrategy = () => localStorage.getItem(LS_STRATEGY) || 'MANUAL'
 
 export default function StockOut() {
   const [form, setForm] = useState({ barcode: '', qty: '', catatan: '' })

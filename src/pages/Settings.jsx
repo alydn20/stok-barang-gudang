@@ -23,7 +23,7 @@ export default function Settings() {
   const [testResult, setTestResult] = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [source,     setSource]     = useState('')
-  const [strategy,   setStrategy]   = useState(localStorage.getItem(LS_STRATEGY) || 'FEFO')
+  const [strategy,   setStrategy]   = useState(localStorage.getItem(LS_STRATEGY) || 'MANUAL')
 
   useEffect(() => {
     fetch('/api/config')
