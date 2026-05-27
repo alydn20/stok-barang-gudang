@@ -1,6 +1,6 @@
 {
   "name": "Stok Barang (By Aliyudin)",
-  "short_name": "Stok Barang",
+  "short_name": "Stok Barang (By Aliyudin)",
   "description": "Manajemen stok barang gudang dengan barcode scanner",
   "start_url": "/",
   "display": "standalone",
