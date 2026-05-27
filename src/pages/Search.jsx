@@ -107,21 +107,25 @@ export default function Search() {
                 <div style={s.batchGrid}>
                   {result.batches.map((b, i) => {
                     const es = expStatus(b.exp)
+                    const accentColor = es === 'expired' ? '#94A3B8' : es === 'soon' ? '#D97706' : Number(b.qty) <= 3 ? '#DC2626' : '#16A34A'
                     return (
-                      <div key={b.batch || i} style={{
-                        ...s.batchCard,
-                        borderLeftColor: es === 'expired' ? '#94A3B8' : es === 'soon' ? '#D97706' : Number(b.qty) <= 3 ? '#DC2626' : '#16A34A',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <span style={s.batchName}>{b.batch || 'Default'}</span>
-                          <span style={{ ...s.batchQty, color: Number(b.qty) <= 3 ? '#DC2626' : '#16A34A' }}>
-                            {b.qty} pcs
-                          </span>
+                      <div key={b.batch || i} style={{ ...s.batchCard, borderLeftColor: accentColor }}>
+                        {/* Baris atas: nama batch + stok */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <div>
+                            <span style={{ fontSize: 10, color: '#94A3B8', display: 'block', marginBottom: 1 }}>No. Batch</span>
+                            <span style={s.batchName}>{b.batch || 'Default'}</span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: 10, color: '#94A3B8', display: 'block', marginBottom: 1 }}>Stok</span>
+                            <span style={{ ...s.batchQty, color: accentColor }}>{b.qty} pcs</span>
+                          </div>
                         </div>
+                        {/* Baris bawah: detail */}
                         <div style={s.batchMeta}>
                           {b.exp && (
                             <span style={{ color: es === 'expired' ? '#94A3B8' : es === 'soon' ? '#D97706' : '#64748B', display: 'flex', alignItems: 'center', gap: 3 }}>
-                              <Calendar size={10} /> {b.exp}
+                              <Calendar size={10} /> Exp: {b.exp}
                               {es === 'expired' && <AlertTriangle size={10} />}
                               {es === 'soon'    && <AlertTriangle size={10} color="#D97706" />}
                             </span>
@@ -130,6 +134,14 @@ export default function Search() {
                             <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: 3 }}>
                               <MapPin size={10} /> {b.posisi}
                             </span>
+                          )}
+                          {b.kategori && (
+                            <span style={{ color: '#64748B', fontSize: 10, background: '#F1F5F9', padding: '1px 6px', borderRadius: 99 }}>
+                              {b.kategori}
+                            </span>
+                          )}
+                          {b.stokAwal > 0 && (
+                            <span style={{ color: '#7C3AED', fontSize: 10 }}>SA: {b.stokAwal}</span>
                           )}
                         </div>
                       </div>
@@ -172,27 +184,42 @@ export default function Search() {
           {/* History */}
           {history.length > 0 && (
             <div className="card" style={{ marginTop: 12, padding: 16 }}>
-              <p style={s.histTitle}>Riwayat Transaksi</p>
-              {history.slice(0, 10).map((h, i) => (
-                <div key={i} style={{ ...s.histItem, borderBottom: i < Math.min(history.length, 10) - 1 ? '1px solid #F1F5F9' : 'none' }}>
-                  <div style={{ ...s.histBadge, background: h.tipe === 'MASUK' ? '#F0FDF4' : '#FEF2F2' }}>
-                    {h.tipe === 'MASUK'
-                      ? <ArrowUpCircle size={18} color="#16A34A" />
-                      : <ArrowDownCircle size={18} color="#DC2626" />}
+              <p style={s.histTitle}>Riwayat Transaksi <span style={{ fontWeight: 400, fontSize: 12, color: '#94A3B8' }}>({history.length} transaksi)</span></p>
+              {history.slice(0, 15).map((h, i) => {
+                const isMasuk = h.tipe === 'MASUK'
+                const tgl = h.tanggal ? new Date(h.tanggal) : null
+                return (
+                  <div key={i} style={{ ...s.histItem, borderBottom: i < Math.min(history.length, 15) - 1 ? '1px solid #F1F5F9' : 'none' }}>
+                    <div style={{ ...s.histBadge, background: isMasuk ? '#F0FDF4' : '#FEF2F2' }}>
+                      {isMasuk
+                        ? <ArrowUpCircle size={18} color="#16A34A" />
+                        : <ArrowDownCircle size={18} color="#DC2626" />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: isMasuk ? '#16A34A' : '#DC2626' }}>
+                          {isMasuk ? 'Masuk' : 'Keluar'}
+                        </span>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: isMasuk ? '#16A34A' : '#DC2626' }}>
+                          {isMasuk ? '+' : '-'}{h.qty} pcs
+                        </span>
+                        {h.batch && (
+                          <span style={s.histBatchTag}>Batch: {h.batch}</span>
+                        )}
+                      </div>
+                      {h.catatan && <p style={s.histNote}><span style={{ color: '#94A3B8' }}>Catatan:</span> {h.catatan}</p>}
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <p style={s.histDate}>
+                        {tgl ? tgl.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                      </p>
+                      <p style={{ ...s.histDate, fontSize: 10, marginTop: 1 }}>
+                        {tgl ? tgl.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </p>
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={s.histType}>
-                      {h.tipe === 'MASUK' ? 'Masuk' : 'Keluar'}{' '}
-                      <span style={{ fontWeight: 700, color: h.tipe === 'MASUK' ? '#16A34A' : '#DC2626' }}>+{h.qty}</span>
-                      {h.batch && <span style={s.histBatchTag}>{h.batch}</span>}
-                    </p>
-                    {h.catatan && <p style={s.histNote}>{h.catatan}</p>}
-                  </div>
-                  <span style={s.histDate}>
-                    {h.tanggal ? new Date(h.tanggal).toLocaleDateString('id-ID', { day:'2-digit', month:'short' }) : '—'}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

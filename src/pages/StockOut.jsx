@@ -124,15 +124,21 @@ export default function StockOut() {
                       onClick={() => setSelectedBatch(b.batch)}
                       style={{ ...s.batchCard, ...(selectedBatch === b.batch ? s.batchCardActive : {}) }}>
                       <div style={s.batchCardRow}>
-                        <span style={{ ...s.batchCardTitle, color: selectedBatch === b.batch ? '#1D4ED8' : '#374151' }}>
-                          {b.batch || 'Default'}
-                        </span>
-                        <span style={s.batchQtyBadge}>{b.qty} pcs</span>
+                        <div>
+                          <span style={{ fontSize: 10, color: '#94A3B8', display: 'block', marginBottom: 1 }}>No. Batch</span>
+                          <span style={{ ...s.batchCardTitle, color: selectedBatch === b.batch ? '#1D4ED8' : '#374151' }}>
+                            {b.batch || 'Default'}
+                          </span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: 10, color: '#94A3B8', display: 'block', marginBottom: 1 }}>Stok</span>
+                          <span style={s.batchQtyBadge}>{b.qty} pcs</span>
+                        </div>
                       </div>
                       {(b.exp || b.posisi) && (
                         <div style={s.batchMeta}>
-                          {b.exp    && <span><Calendar size={10} /> {b.exp}</span>}
-                          {b.posisi && <span><MapPin size={10} /> {b.posisi}</span>}
+                          {b.exp    && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Calendar size={10} /> Exp: {b.exp}</span>}
+                          {b.posisi && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><MapPin size={10} /> {b.posisi}</span>}
                         </div>
                       )}
                     </button>

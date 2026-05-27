@@ -218,9 +218,9 @@ export default function StockList() {
                   </div>
                 </div>
                 <div style={s.itemMeta}>
-                  <span style={s.metaCode}>{item.barcode}</span>
+                  <span style={s.metaCode}>#{item.barcode}</span>
                   {item.batch && (
-                    <span style={s.metaBatch}><Layers size={10} /> {item.batch}</span>
+                    <span style={s.metaBatch}><Layers size={10} /> Batch: {item.batch}</span>
                   )}
                   {item.kategori && (
                     <span style={s.metaKat}><Tag size={10} /> {item.kategori}</span>
@@ -230,7 +230,7 @@ export default function StockList() {
                   )}
                   {item.exp && (
                     <span style={{ ...s.metaItem, color: es === 'expired' ? '#94A3B8' : es === 'soon' ? '#D97706' : '#64748B' }}>
-                      <Calendar size={11} /> {item.exp}
+                      <Calendar size={11} /> Exp: {item.exp}
                       {es === 'soon'    && <AlertTriangle size={11} color="#D97706" />}
                       {es === 'expired' && <AlertTriangle size={11} color="#94A3B8" />}
                     </span>
