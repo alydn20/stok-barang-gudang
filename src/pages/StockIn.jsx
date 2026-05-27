@@ -68,6 +68,7 @@ export default function StockIn() {
     e.preventDefault()
     if (!form.barcode) return setStatus({ type: 'error', msg: 'Barcode wajib diisi.' })
     if (found !== false && !form.qty) return setStatus({ type: 'error', msg: 'Qty wajib diisi.' })
+    if (found === true && batchMode === 'new' && !form.batch.trim()) return setStatus({ type: 'error', msg: 'No. Batch wajib diisi untuk batch baru.' })
     setLoading(true); setStatus(null)
     try {
       await sheetsApi.stockIn({
