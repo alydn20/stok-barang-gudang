@@ -43,12 +43,11 @@ export default function StockIn() {
           }))
         } else {
           setBatchMode('new')
-          setForm(f => ({ ...f, barcode: barcode.trim(), nama: res.nama || f.nama, batch: 'NO001' }))
+          setForm(f => ({ ...f, barcode: barcode.trim(), nama: res.nama || f.nama, batch: '' }))
         }
         setFound(true)
       } else {
         setFound(false)
-        set('batch', 'NO001')
       }
     } catch { setFound(false) }
     finally { setSearching(false) }
