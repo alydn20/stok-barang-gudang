@@ -43,11 +43,12 @@ export default function StockIn() {
           }))
         } else {
           setBatchMode('new')
-          setForm(f => ({ ...f, barcode: barcode.trim(), nama: res.nama || f.nama, batch: '' }))
+          setForm(f => ({ ...f, barcode: barcode.trim(), nama: res.nama || f.nama, batch: 'NO001' }))
         }
         setFound(true)
       } else {
         setFound(false)
+        set('batch', 'NO001')
       }
     } catch { setFound(false) }
     finally { setSearching(false) }
@@ -71,7 +72,7 @@ export default function StockIn() {
     try {
       await sheetsApi.stockIn({
         ...form,
-        stokAwal: form.stokAwal !== '' ? Number(form.stokAwal) : 0,
+        stokAwal: found === false && form.stokAwal !== '' ? Number(form.stokAwal) : undefined,
         tanggal: new Date().toISOString(),
       })
       setStatus({ type: 'success', msg: 'Barang masuk berhasil disimpan.' })
@@ -110,12 +111,12 @@ export default function StockIn() {
               style={found === true ? s.inputLocked : {}}
               required
             />
-            {found !== true && (
+            {found === null && (
               <button type="button" onClick={() => setShowScanner(true)} className="btn-icon" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10 }}>
                 <ScanLine size={20} />
               </button>
             )}
-            {found === true && (
+            {found !== null && (
               <button type="button" onClick={handleClear} style={s.clearBtn} title="Ganti barang">
                 <XCircle size={18} color="#DC2626" />
               </button>
@@ -153,7 +154,7 @@ export default function StockIn() {
                   <Layers size={12} /> Batch Lama ({batches.length})
                 </button>
                 <button type="button"
-                  onClick={() => { setBatchMode('new'); setForm(f => ({ ...f, batch: '', exp: '', posisi: '', kategori: '' })) }}
+                  onClick={() => { setBatchMode('new'); setForm(f => ({ ...f, batch: 'NO001', exp: '', posisi: '', kategori: '' })) }}
                   style={{ ...s.batchTab, ...(batchMode === 'new' ? s.batchTabActive : {}) }}>
                   + Batch Baru
                 </button>

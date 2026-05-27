@@ -199,6 +199,7 @@ function stockIn(data) {
     tanggal ? new Date(tanggal) : new Date(),
     barcode, nama || '', Number(qty) || 0, catatan || '', batch || ''
   ])
+  SpreadsheetApp.flush()
 
   upsertMaster(barcode, nama, exp, posisi, stokAwal !== undefined ? Number(stokAwal) : undefined, kategori, batch || '')
   return { success: true }
@@ -246,6 +247,8 @@ function stockOut(data) {
     tanggal ? new Date(tanggal) : new Date(),
     barcode, itemName, Number(qty) || 0, catatan || '', targetBatch
   ])
+  SpreadsheetApp.flush()
+
   upsertMaster(barcode, null, null, null, undefined, undefined, targetBatch)
   return { success: true }
 }
@@ -453,66 +456,62 @@ function formatTgl(val) {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚙️ Stok Gudang')
-    .addItem('✅ Terapkan Format Saja (Data Aman)', 'applyFormatOnly')
-    .addItem('🔄 Migrasi Data Lama → Batch-1', 'migrateLamaToBatch1')
-    .addItem('Refresh Semua Total (D/E/F)', 'refreshAllFormulas')
-    .addItem('Refresh Conditional Formatting', 'applyConditionalFormatting')
+    .addItem('✅ Format & Perbaiki Semua (Data Aman)', 'perbaikiSemua')
     .addSeparator()
     .addItem('⚠️ Setup Template BARU (Hapus Semua Data)', 'setupSpreadsheet')
     .addToUi()
 }
 
-// ---- MIGRASI DATA LAMA → BATCH-1 ----
+// ---- FORMAT & PERBAIKI SEMUA (gabungan format + migrasi + refresh) ----
 
-function migrateLamaToBatch1() {
-  const ui = SpreadsheetApp.getUi()
+function perbaikiSemua() {
+  const ui   = SpreadsheetApp.getUi()
   const resp = ui.alert(
-    '🔄 Migrasi Batch',
-    'Semua baris yang kolom "No. Batch"-nya kosong akan diisi "Batch-1".\n\nLanjutkan?',
+    '✅ Format & Perbaiki Semua',
+    'Tindakan ini akan:\n' +
+    '1. Terapkan format warna & kolom\n' +
+    '2. Isi kolom Batch yang kosong dengan "NO001"\n' +
+    '3. Hitung ulang Total Masuk / Keluar / Stok Akhir\n\n' +
+    'Data tidak akan dihapus. Lanjutkan?',
     ui.ButtonSet.YES_NO
   )
   if (resp !== ui.Button.YES) return
 
-  const ss    = SpreadsheetApp.getActiveSpreadsheet()
-  let count   = 0
+  const ss = SpreadsheetApp.getActiveSpreadsheet()
+  ss.setSpreadsheetTimeZone('Asia/Jakarta')
 
-  // Master_Stok — kolom J (no. 10)
+  // 1. Format semua sheet
+  _formatMasterOnly(ss)
+  _formatTransaksiOnly(ss, SHEET_MASUK,  '#15803D', '#DCFCE7', '#F0FDF4')
+  _formatTransaksiOnly(ss, SHEET_KELUAR, '#B91C1C', '#FEE2E2', '#FFF1F2')
+  applyConditionalFormatting()
+
+  // 2. Isi batch kosong dengan NO001
+  let count = 0
   const master = ss.getSheetByName(SHEET_MASTER)
   if (master && master.getLastRow() > 1) {
     const vals = master.getRange(2, 10, master.getLastRow() - 1, 1).getValues()
     vals.forEach((r, i) => {
-      if (r[0].toString().trim() === '') {
-        master.getRange(i + 2, 10).setValue('Batch-1')
-        count++
-      }
+      if (r[0].toString().trim() === '') { master.getRange(i + 2, 10).setValue('NO001'); count++ }
     })
   }
-
-  // Barang_Masuk — kolom F (no. 6)
   const masuk = ss.getSheetByName(SHEET_MASUK)
   if (masuk && masuk.getLastRow() > 1) {
     const vals = masuk.getRange(2, 6, masuk.getLastRow() - 1, 1).getValues()
     vals.forEach((r, i) => {
-      if (r[0].toString().trim() === '') {
-        masuk.getRange(i + 2, 6).setValue('Batch-1')
-        count++
-      }
+      if (r[0].toString().trim() === '') { masuk.getRange(i + 2, 6).setValue('NO001'); count++ }
     })
   }
-
-  // Barang_Keluar — kolom F (no. 6)
   const keluar = ss.getSheetByName(SHEET_KELUAR)
   if (keluar && keluar.getLastRow() > 1) {
     const vals = keluar.getRange(2, 6, keluar.getLastRow() - 1, 1).getValues()
     vals.forEach((r, i) => {
-      if (r[0].toString().trim() === '') {
-        keluar.getRange(i + 2, 6).setValue('Batch-1')
-        count++
-      }
+      if (r[0].toString().trim() === '') { keluar.getRange(i + 2, 6).setValue('NO001'); count++ }
     })
   }
 
-  // Refresh semua total D/E/F di Master_Stok
+  // 3. Hitung ulang semua total di Master_Stok
+  SpreadsheetApp.flush()
   if (master && master.getLastRow() > 1) {
     const data = master.getRange(2, 1, master.getLastRow() - 1, 10).getValues()
     data.forEach((r, i) => {
@@ -522,10 +521,10 @@ function migrateLamaToBatch1() {
     })
   }
 
-  ui.alert(`✅ Selesai! ${count} baris dimigrasi ke "Batch-1". Total stok sudah diperbarui.`)
+  ui.alert(`✅ Selesai!\n${count} baris batch diisi "NO001".\nSemua format & total stok sudah diperbarui.`)
 }
 
-// ---- FORMAT SAJA (tidak hapus data) ----
+// ---- FORMAT SAJA (dipakai internal oleh perbaikiSemua & setupSpreadsheet) ----
 
 function applyFormatOnly() {
   const ss = SpreadsheetApp.getActiveSpreadsheet()
