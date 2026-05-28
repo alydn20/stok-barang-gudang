@@ -25,8 +25,9 @@ function doGet(e) {
     else if (action === 'search')     result = searchByBarcode(e.parameter.barcode)
     else if (action === 'getAllStock') result = getAllStock()
     else if (action === 'getHistory') result = getHistory(e.parameter)
-    else if (action === 'getStats')   result = getStats(e.parameter)
-    else                              result = { error: 'Unknown action: ' + action }
+    else if (action === 'getStats')    result = getStats(e.parameter)
+    else if (action === 'getSettings') result = getSettings()
+    else                               result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
     return jsonResponse({ error: err.message })
@@ -38,12 +39,13 @@ function doPost(e) {
     const data   = JSON.parse(e.postData.contents)
     const action = data.action
     let result
-    if      (action === 'stockIn')    result = stockIn(data)
-    else if (action === 'stockOut')   result = stockOut(data)
-    else if (action === 'updateItem') result = updateItem(data)
-    else if (action === 'addItem')    result = addItem(data)
-    else if (action === 'deleteItem') result = deleteItem(data)
-    else                              result = { error: 'Unknown action: ' + action }
+    if      (action === 'stockIn')      result = stockIn(data)
+    else if (action === 'stockOut')     result = stockOut(data)
+    else if (action === 'updateItem')   result = updateItem(data)
+    else if (action === 'addItem')      result = addItem(data)
+    else if (action === 'deleteItem')   result = deleteItem(data)
+    else if (action === 'saveSettings') result = saveSettings(data)
+    else                                result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
     return jsonResponse({ error: err.message })
@@ -372,6 +374,23 @@ function deleteItem(data) {
     }
   }
   return { success: false, error: 'Barang tidak ditemukan.' }
+}
+
+// ---- SETTINGS ----
+
+function getSettings() {
+  const props = PropertiesService.getScriptProperties()
+  const expDays = props.getProperty('exp_threshold_days')
+  return { expDays: expDays != null ? Number(expDays) : null }
+}
+
+function saveSettings(data) {
+  const props = PropertiesService.getScriptProperties()
+  if (data.expDays !== undefined) {
+    const n = Math.max(1, Math.min(365, Number(data.expDays)))
+    props.setProperty('exp_threshold_days', String(n))
+  }
+  return { success: true }
 }
 
 // ---- STATS ----

@@ -30,6 +30,7 @@ export default function Settings() {
   const [expDays,    setExpDays]    = useState(Number(localStorage.getItem(LS_EXP_DAYS) || 30))
 
   useEffect(() => {
+    // Load GAS URL
     fetch('/api/config')
       .then(r => r.json())
       .then(d => {
@@ -38,20 +39,23 @@ export default function Settings() {
           const local = localStorage.getItem(LS_KEY)
           if (local) { setGasUrl(local); setSource('local') }
         }
-        if (d.expDays != null) {
-          // Server punya nilai eksplisit — pakai dan sync ke localStorage
-          const n = Number(d.expDays)
-          setExpDays(n)
-          localStorage.setItem(LS_EXP_DAYS, String(n))
-        }
-        // Jika d.expDays === null, server belum punya nilai → biarkan state
-        // dari localStorage yang sudah diinit di useState()
       })
       .catch(() => {
         const local = localStorage.getItem(LS_KEY)
         if (local) { setGasUrl(local); setSource('local') }
       })
       .finally(() => setLoading(false))
+
+    // Load expDays dari GAS PropertiesService (sinkron antar semua device)
+    sheetsApi.getSettings()
+      .then(d => {
+        if (d.expDays != null) {
+          const n = Number(d.expDays)
+          setExpDays(n)
+          localStorage.setItem(LS_EXP_DAYS, String(n))
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const handleStrategyChange = (val) => {
@@ -63,13 +67,7 @@ export default function Settings() {
     const n = Math.max(1, Math.min(365, Number(val)))
     setExpDays(n)
     localStorage.setItem(LS_EXP_DAYS, String(n))
-    fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expDays: n }),
-    }).then(r => {
-      if (!r.ok) console.warn('Gagal simpan expDays ke server, tersimpan di localStorage saja')
-    }).catch(() => {})
+    sheetsApi.saveSettings({ expDays: n }).catch(() => {})
   }
 
   const handleSave = () => {

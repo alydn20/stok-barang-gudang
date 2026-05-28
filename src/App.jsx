@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { sheetsApi } from './services/sheetsApi'
 import Layout from './components/Layout'
 import Navbar from './components/Navbar'
 import InstallGate from './components/InstallGate'
@@ -14,8 +15,7 @@ import Settings from './pages/Settings'
 
 export default function App() {
   useEffect(() => {
-    fetch('/api/config')
-      .then(r => r.json())
+    sheetsApi.getSettings()
       .then(d => { if (d.expDays != null) localStorage.setItem('exp_threshold_days', String(d.expDays)) })
       .catch(() => {})
   }, [])
