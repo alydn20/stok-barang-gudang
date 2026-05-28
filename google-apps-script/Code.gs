@@ -36,14 +36,18 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    const data   = JSON.parse(e.postData.contents)
+    const data = JSON.parse(e.postData.contents)
+
+    // Telegram webhook update
+    if (data.update_id !== undefined) return handleTelegramUpdate(data)
+
     const action = data.action
     let result
-    if      (action === 'stockIn')      result = stockIn(data)
-    else if (action === 'stockOut')     result = stockOut(data)
-    else if (action === 'updateItem')   result = updateItem(data)
-    else if (action === 'addItem')      result = addItem(data)
-    else if (action === 'deleteItem')   result = deleteItem(data)
+    if      (action === 'stockIn')        result = stockIn(data)
+    else if (action === 'stockOut')       result = stockOut(data)
+    else if (action === 'updateItem')     result = updateItem(data)
+    else if (action === 'addItem')        result = addItem(data)
+    else if (action === 'deleteItem')     result = deleteItem(data)
     else if (action === 'saveSettings')   result = saveSettings(data)
     else if (action === 'sendDailyReport') result = sendDailyReport()
     else                                   result = { error: 'Unknown action: ' + action }
@@ -403,57 +407,152 @@ function saveSettings(data) {
 
 // ---- TELEGRAM ----
 
-function sendDailyReport() {
-  const props    = PropertiesService.getScriptProperties()
-  const token    = props.getProperty('telegram_bot_token')
-  const chatId   = props.getProperty('telegram_chat_id')
-  Logger.log('sendDailyReport: token=' + (token ? 'ADA' : 'KOSONG') + ' chatId=' + (chatId ? 'ADA' : 'KOSONG'))
-  if (!token || !chatId) return { success: false, error: 'Token atau Chat ID belum dikonfigurasi.' }
-  Logger.log('Memanggil Telegram API...')
-
-  const expDays  = Number(props.getProperty('exp_threshold_days') || 30)
-  const stats    = getStats({ expDays: expDays })
-  const now      = new Date()
-  const dateStr  = Utilities.formatDate(now, 'Asia/Jakarta', 'dd MMMM yyyy')
-  const timeStr  = Utilities.formatDate(now, 'Asia/Jakarta', 'HH:mm')
-
-  const lines = [
-    '📦 <b>Laporan Harian — Stok Gudang</b>',
-    '📅 ' + dateStr + ' · ' + timeStr + ' WIB',
-    '',
-    '📊 <b>Ringkasan Stok:</b>',
-    '• Total Item      : <b>' + stats.totalItem + '</b>',
-    '• Masuk hari ini  : <b>' + stats.todayMasuk + '</b>',
-    '• Keluar hari ini : <b>' + stats.todayKeluar + '</b>',
-  ]
-
-  const alerts = []
-  if (stats.lowStock     > 0) alerts.push('⚠️ Stok sedikit      : <b>' + stats.lowStock     + '</b> item')
-  if (stats.expiringSoon > 0) alerts.push('🕐 Segera exp (≤' + expDays + 'h) : <b>' + stats.expiringSoon + '</b> item')
-  if (stats.expired      > 0) alerts.push('❌ Sudah kadaluarsa  : <b>' + stats.expired      + '</b> item')
-
-  if (alerts.length > 0) {
-    lines.push('')
-    lines.push('🔔 <b>Perhatian:</b>')
-    alerts.forEach(function(a) { lines.push(a) })
-  } else {
-    lines.push('')
-    lines.push('✅ Semua stok dalam kondisi aman!')
-  }
-
-  lines.push('')
-  lines.push('<i>— Stok Gudang (By Aliyudin)</i>')
-
-  var resp = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+function _sendTelegramMessage(token, chatId, text) {
+  return UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
     method: 'POST',
     contentType: 'application/json',
-    payload: JSON.stringify({ chat_id: chatId, text: lines.join('\n'), parse_mode: 'HTML' }),
+    payload: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' }),
     muteHttpExceptions: true,
   })
+}
+
+function handleTelegramUpdate(update) {
+  const msg = update.message
+  if (!msg) return jsonResponse({ ok: true })
+  const props  = PropertiesService.getScriptProperties()
+  const token  = props.getProperty('telegram_bot_token')
+  if (!token) return jsonResponse({ ok: true })
+  const chatId = msg.chat.id
+  const text   = (msg.text || '').trim()
+  if (text === '/start') {
+    _sendTelegramMessage(token, chatId,
+      '<b>Stok Gudang — Sistem Notifikasi</b>\n\n' +
+      'Anda telah terdaftar sebagai penerima laporan harian.\n\n' +
+      'Laporan dikirim otomatis setiap hari pukul 07.00 WIB dan mencakup:\n' +
+      '  - Ringkasan total stok\n' +
+      '  - Pergerakan barang hari ini\n' +
+      '  - Daftar item dengan stok sedikit\n' +
+      '  - Daftar item yang mendekati kadaluarsa\n\n' +
+      'Tidak diperlukan tindakan lain.\n\n' +
+      '<i>Stok Gudang  |  by Aliyudin</i>'
+    )
+  }
+  return jsonResponse({ ok: true })
+}
+
+// Jalankan sekali dari GAS editor setelah deploy untuk mengaktifkan auto-reply /start
+function setTelegramWebhook() {
+  const props  = PropertiesService.getScriptProperties()
+  const token  = props.getProperty('telegram_bot_token')
+  const gasUrl = ScriptApp.getService().getUrl()
+  Logger.log('Setting webhook to: ' + gasUrl)
+  var resp = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/setWebhook', {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify({ url: gasUrl }),
+    muteHttpExceptions: true,
+  })
+  Logger.log('Webhook response: ' + resp.getContentText())
+}
+
+function sendDailyReport() {
+  const props   = PropertiesService.getScriptProperties()
+  const token   = props.getProperty('telegram_bot_token')
+  const chatId  = props.getProperty('telegram_chat_id')
+  if (!token || !chatId) return { success: false, error: 'Token atau Chat ID belum dikonfigurasi.' }
+
+  const expDays = Number(props.getProperty('exp_threshold_days') || 30)
+  const stats   = getStats({ expDays: expDays })
+  const details = _getReportDetails(expDays)
+  const now     = new Date()
+  const dateStr = Utilities.formatDate(now, 'Asia/Jakarta', 'dd MMMM yyyy')
+  const timeStr = Utilities.formatDate(now, 'Asia/Jakarta', 'HH:mm')
+
+  const L = []
+  L.push('<b>LAPORAN HARIAN STOK GUDANG</b>')
+  L.push(dateStr + '   ' + timeStr + ' WIB')
+  L.push('─────────────────────────')
+  L.push('')
+  L.push('<b>RINGKASAN</b>')
+  L.push('Total Item        : <b>' + stats.totalItem  + '</b>')
+  L.push('Total Qty Stok    : <b>' + stats.totalStok  + '</b>')
+  L.push('Masuk Hari Ini    : <b>' + stats.todayMasuk  + '</b>')
+  L.push('Keluar Hari Ini   : <b>' + stats.todayKeluar + '</b>')
+
+  if (stats.lowStock > 0) {
+    L.push('')
+    L.push('<b>STOK SEDIKIT  (' + stats.lowStock + ' item)</b>')
+    details.lowItems.slice(0, 20).forEach(function(it) {
+      L.push('  ' + it.nama + '  —  ' + it.qty + ' pcs')
+    })
+    if (stats.lowStock > 20) L.push('  ... dan ' + (stats.lowStock - 20) + ' item lainnya')
+  }
+
+  if (stats.expiringSoon > 0) {
+    L.push('')
+    L.push('<b>SEGERA KADALUARSA  (' + stats.expiringSoon + ' item, <= ' + expDays + ' hari)</b>')
+    details.expiringItems.forEach(function(it) {
+      L.push('  ' + it.nama + '  —  ' + it.exp)
+    })
+  }
+
+  if (stats.expired > 0) {
+    L.push('')
+    L.push('<b>SUDAH KADALUARSA  (' + stats.expired + ' item)</b>')
+    details.expiredItems.slice(0, 10).forEach(function(it) {
+      L.push('  ' + it.nama + '  —  ' + it.exp)
+    })
+    if (stats.expired > 10) L.push('  ... dan ' + (stats.expired - 10) + ' item lainnya')
+  }
+
+  if (stats.lowStock === 0 && stats.expiringSoon === 0 && stats.expired === 0) {
+    L.push('')
+    L.push('Semua stok dalam kondisi aman.')
+  }
+
+  L.push('')
+  L.push('─────────────────────────')
+  L.push('<i>Stok Gudang  |  by Aliyudin</i>')
+
+  var resp   = _sendTelegramMessage(token, chatId, L.join('\n'))
   var result = JSON.parse(resp.getContentText())
   Logger.log('Telegram response: ' + JSON.stringify(result))
   if (!result.ok) return { success: false, error: result.description || 'Telegram API error' }
   return { success: true }
+}
+
+function _getReportDetails(expDays) {
+  const ss        = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet     = ss.getSheetByName(SHEET_MASTER)
+  const totMasuk  = _sumByKey(ss.getSheetByName(SHEET_MASUK))
+  const totKeluar = _sumByKey(ss.getSheetByName(SHEET_KELUAR))
+  const lowItems  = [], expiringItems = [], expiredItems = []
+  const today = new Date(); today.setHours(0,0,0,0)
+  const inExp = new Date(today); inExp.setDate(today.getDate() + expDays)
+  const tz    = 'Asia/Jakarta'
+
+  if (sheet && sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues()
+      .filter(function(r) { return r[0] })
+      .forEach(function(r) {
+        const bc    = r[0].toString().trim()
+        const batch = r[9] ? r[9].toString().trim() : ''
+        const key   = _makeKey(bc, batch)
+        const qty   = (Number(r[2]) || 0) + (totMasuk[key] || 0) - (totKeluar[key] || 0)
+        const nama  = r[1].toString()
+        if (qty <= 3) lowItems.push({ nama: nama, barcode: bc, qty: qty })
+        if (r[6]) {
+          const exp = new Date(r[6]); exp.setHours(0,0,0,0)
+          const expStr = Utilities.formatDate(exp, tz, 'dd MMM yyyy')
+          if (exp < today)      expiredItems.push({ nama: nama, exp: expStr })
+          else if (exp <= inExp) expiringItems.push({ nama: nama, exp: expStr })
+        }
+      })
+  }
+
+  lowItems.sort(function(a, b) { return a.qty - b.qty })
+  expiringItems.sort(function(a, b) { return new Date(a.exp) - new Date(b.exp) })
+  return { lowItems: lowItems, expiringItems: expiringItems, expiredItems: expiredItems }
 }
 
 // Jalankan fungsi ini SEKALI dari GAS editor untuk menyimpan konfigurasi Telegram
