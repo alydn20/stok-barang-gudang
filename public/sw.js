@@ -1,5 +1,5 @@
-// Stok Barang (By Aliyudin) — v2
-const CACHE = 'stok-barang-v2'
+// Stok Barang (By Aliyudin) — v3
+const CACHE = 'stok-barang-v3'
 
 self.addEventListener('install', () => self.skipWaiting())
 

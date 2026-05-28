@@ -7,21 +7,43 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  // GET — ambil URL dari KV, fallback ke env var
+  // GET — ambil URL & settings dari KV, fallback ke env var
   if (req.method === 'GET') {
     try {
-      const gasUrl = (await kv.get('gas_url')) || process.env.GAS_URL || ''
-      return res.json({ gasUrl, configured: Boolean(gasUrl) })
+      const [gasUrl, expDays] = await Promise.all([
+        kv.get('gas_url'),
+        kv.get('exp_threshold_days'),
+      ])
+      return res.json({
+        gasUrl:   gasUrl  || process.env.GAS_URL || '',
+        expDays:  expDays != null ? Number(expDays) : 30,
+        configured: Boolean(gasUrl || process.env.GAS_URL),
+      })
     } catch {
-      const gasUrl = process.env.GAS_URL || ''
-      return res.json({ gasUrl, configured: Boolean(gasUrl) })
+      return res.json({
+        gasUrl:     process.env.GAS_URL || '',
+        expDays:    30,
+        configured: Boolean(process.env.GAS_URL),
+      })
     }
   }
 
-  // POST — simpan URL ke KV (butuh adminKey)
+  // POST — simpan settings ke KV
   if (req.method === 'POST') {
-    const { gasUrl, adminKey } = req.body || {}
+    const { gasUrl, adminKey, expDays } = req.body || {}
 
+    // Simpan batas exp (tidak butuh adminKey)
+    if (expDays !== undefined) {
+      const n = Math.max(1, Math.min(365, Number(expDays)))
+      try {
+        await kv.set('exp_threshold_days', n)
+        return res.json({ success: true })
+      } catch {
+        return res.status(500).json({ error: 'Vercel KV belum dikonfigurasi.' })
+      }
+    }
+
+    // Simpan GAS URL (butuh adminKey)
     if (!adminKey || adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Admin key tidak valid.' })
     }

@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react'
 import {
   CheckCircle2, XCircle, Save, Wifi,
   Settings2, Info, Loader2, Server,
-  HardDrive, Cloud, SlidersHorizontal,
+  HardDrive, Cloud, SlidersHorizontal, CalendarClock,
 } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
 const LS_KEY      = 'gas_url'
 const LS_STRATEGY = 'stockout_strategy'
+export const LS_EXP_DAYS = 'exp_threshold_days'
+
+const EXP_PRESETS = [7, 14, 30, 60, 90]
 
 const STRATEGIES = [
   { val: 'FEFO',   label: 'Auto FEFO',  desc: 'Batch exp. paling dekat diambil duluan (default)' },
@@ -24,6 +27,7 @@ export default function Settings() {
   const [loading,    setLoading]    = useState(true)
   const [source,     setSource]     = useState('')
   const [strategy,   setStrategy]   = useState(localStorage.getItem(LS_STRATEGY) || 'MANUAL')
+  const [expDays,    setExpDays]    = useState(Number(localStorage.getItem(LS_EXP_DAYS) || 30))
 
   useEffect(() => {
     fetch('/api/config')
@@ -33,6 +37,11 @@ export default function Settings() {
         else {
           const local = localStorage.getItem(LS_KEY)
           if (local) { setGasUrl(local); setSource('local') }
+        }
+        if (d.expDays != null) {
+          const n = Number(d.expDays)
+          setExpDays(n)
+          localStorage.setItem(LS_EXP_DAYS, String(n))
         }
       })
       .catch(() => {
@@ -45,6 +54,17 @@ export default function Settings() {
   const handleStrategyChange = (val) => {
     setStrategy(val)
     localStorage.setItem(LS_STRATEGY, val)
+  }
+
+  const handleExpDaysChange = (val) => {
+    const n = Math.max(1, Math.min(365, Number(val)))
+    setExpDays(n)
+    localStorage.setItem(LS_EXP_DAYS, String(n))
+    fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expDays: n }),
+    }).catch(() => {})
   }
 
   const handleSave = () => {
@@ -162,6 +182,38 @@ export default function Settings() {
         ))}
       </div>
 
+      {/* Batas Kadaluarsa */}
+      <div className="card" style={s.card}>
+        <div style={s.cardHeader}>
+          <CalendarClock size={18} color="#D97706" />
+          <h3 style={s.cardTitle}>Batas Peringatan Kadaluarsa</h3>
+        </div>
+        <p style={{ fontSize: 12, color: '#64748B', marginBottom: 12 }}>
+          Tampilkan label "Segera Exp" jika kadaluarsa dalam &lt;= <strong>{expDays} hari</strong>
+        </p>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          {EXP_PRESETS.map(d => (
+            <button key={d} type="button"
+              onClick={() => handleExpDaysChange(d)}
+              style={{ ...s.expBtn, ...(expDays === d ? s.expBtnActive : {}) }}>
+              {d} hari
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label className="label" style={{ whiteSpace: 'nowrap', margin: 0 }}>Custom:</label>
+          <input
+            className="input"
+            type="number"
+            min={1} max={365}
+            value={expDays}
+            onChange={e => handleExpDaysChange(e.target.value)}
+            style={{ width: 80, textAlign: 'center' }}
+          />
+          <span style={{ fontSize: 12, color: '#64748B' }}>hari</span>
+        </div>
+      </div>
+
       {/* Tentang */}
       <div className="card" style={s.card}>
         <div style={s.cardHeader}><Info size={18} color="#64748B" /><h3 style={s.cardTitle}>Tentang</h3></div>
@@ -200,4 +252,6 @@ const s = {
   creditTag:   { marginTop: 10, display: 'inline-block', background: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontSize: 11, padding: '3px 12px', borderRadius: 99, letterSpacing: 0.5 },
   stratOption: { padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', textAlign: 'left', width: '100%', marginBottom: 6, display: 'block' },
   stratActive: { borderColor: '#2563EB', background: '#EFF6FF' },
+  expBtn:      { padding: '6px 14px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#64748B' },
+  expBtnActive:{ borderColor: '#D97706', background: '#FFFBEB', color: '#92400E' },
 }

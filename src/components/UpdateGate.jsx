@@ -45,10 +45,11 @@ export default function UpdateGate({ children }) {
 
         {/* Highlights */}
         <div style={s.highlights}>
+          <p style={s.changelogTitle}>Yang baru di versi ini:</p>
           {[
-            'Performa lebih cepat',
-            'Fitur terbaru tersedia',
-            'Perbaikan bug & keamanan',
+            'Pengaturan batas hari peringatan kadaluarsa',
+            'Setelan disimpan ke server (Vercel KV)',
+            'Filter "Segera Exp" mengikuti batas yang diatur',
           ].map(t => (
             <div key={t} style={s.highlightRow}>
               <span style={s.dot} />
@@ -128,6 +129,11 @@ const s = {
   subtitle: {
     fontSize: 14, color: '#94A3B8', lineHeight: 1.6,
     marginBottom: 20,
+  },
+  changelogTitle: {
+    fontSize: 11, fontWeight: 700, color: '#60A5FA',
+    letterSpacing: '0.06em', textTransform: 'uppercase',
+    marginBottom: 8,
   },
   highlights: {
     background: 'rgba(255,255,255,0.05)',

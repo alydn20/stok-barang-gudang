@@ -29,8 +29,9 @@ export default function StockList() {
   }
   useEffect(() => { load() }, [])
 
-  const today = new Date()
-  const soon  = new Date(); soon.setDate(today.getDate() + 30)
+  const today   = new Date()
+  const expDays = Number(localStorage.getItem('exp_threshold_days') || 30)
+  const soon    = new Date(); soon.setDate(today.getDate() + expDays)
 
   const expStatus = (exp) => {
     if (!exp) return null
