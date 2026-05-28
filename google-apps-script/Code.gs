@@ -407,7 +407,9 @@ function sendDailyReport() {
   const props    = PropertiesService.getScriptProperties()
   const token    = props.getProperty('telegram_bot_token')
   const chatId   = props.getProperty('telegram_chat_id')
+  Logger.log('sendDailyReport: token=' + (token ? 'ADA' : 'KOSONG') + ' chatId=' + (chatId ? 'ADA' : 'KOSONG'))
   if (!token || !chatId) return { success: false, error: 'Token atau Chat ID belum dikonfigurasi.' }
+  Logger.log('Memanggil Telegram API...')
 
   const expDays  = Number(props.getProperty('exp_threshold_days') || 30)
   const stats    = getStats({ expDays: expDays })
