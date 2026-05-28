@@ -61,6 +61,7 @@ export const sheetsApi = {
   deleteItem:      (data)         => postGAS('deleteItem', data),
   getSettings:        ()     => callGAS('getSettings'),
   saveSettings:       (data) => postGAS('saveSettings', data),
-  sendTelegramReport: ()     => postGAS('sendDailyReport', {}),
+  sendTelegramReport:   ()   => postGAS('sendDailyReport', {}),
+  sendWelcomeMessage:   ()   => postGAS('sendWelcomeMessage', {}),
   resetCache:      ()             => { _url = null },
 }

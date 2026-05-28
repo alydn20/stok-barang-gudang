@@ -3,7 +3,7 @@ import {
   CheckCircle2, XCircle, Save, Wifi,
   Settings2, Info, Loader2, Server,
   HardDrive, Cloud, SlidersHorizontal, CalendarClock,
-  BellRing, ExternalLink,
+  BellRing, ExternalLink, Send,
 } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
@@ -29,6 +29,8 @@ export default function Settings() {
   const [source,     setSource]     = useState('')
   const [strategy,       setStrategy]       = useState(localStorage.getItem(LS_STRATEGY) || 'MANUAL')
   const [expDays,        setExpDays]        = useState(Number(localStorage.getItem(LS_EXP_DAYS) || 30))
+  const [tgWelcome,      setTgWelcome]      = useState(null)
+  const [tgWelcomeBusy, setTgWelcomeBusy]  = useState(false)
 
   useEffect(() => {
     // Load GAS URL
@@ -225,21 +227,38 @@ export default function Settings() {
           <h3 style={s.cardTitle}>Notifikasi Telegram</h3>
         </div>
         <p style={{ fontSize: 12, color: '#64748B', marginBottom: 14, lineHeight: 1.7 }}>
-          Laporan harian otomatis dikirim ke bot Telegram setiap hari pukul <strong>07:00 WIB</strong>.
-          Wajib follow bot di bawah agar menerima notifikasi.
+          Laporan harian otomatis dikirim setiap hari pukul <strong>07:00 WIB</strong>.
+          Follow bot terlebih dahulu, lalu kirim pesan sambutan.
         </p>
-        <a
-          href="https://t.me/StokBarangByAliyudin_BOT"
-          target="_blank"
-          rel="noopener noreferrer"
+        <a href="https://t.me/StokBarangByAliyudin_BOT" target="_blank" rel="noopener noreferrer"
           style={s.tgFollowBtn}>
           <BellRing size={15} />
-          Follow @StokBarangByAliyudin_BOT
+          1. Follow @StokBarangByAliyudin_BOT
           <ExternalLink size={13} style={{ marginLeft: 'auto' }} />
         </a>
-        <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 8, textAlign: 'center' }}>
-          Ketuk tombol di atas → buka Telegram → klik <strong>Start</strong>
-        </p>
+        <button
+          onClick={async () => {
+            setTgWelcomeBusy(true); setTgWelcome(null)
+            try {
+              const res = await sheetsApi.sendWelcomeMessage()
+              setTgWelcome(res.success
+                ? { ok: true,  msg: 'Pesan sambutan terkirim ke Telegram!' }
+                : { ok: false, msg: res.error || 'Gagal mengirim.' })
+            } catch (e) { setTgWelcome({ ok: false, msg: e.message }) }
+            finally { setTgWelcomeBusy(false) }
+          }}
+          disabled={tgWelcomeBusy}
+          className="btn btn-primary"
+          style={{ width: '100%', marginTop: 8 }}>
+          {tgWelcomeBusy ? <Loader2 size={15} className="spin" /> : <Send size={15} />}
+          {tgWelcomeBusy ? 'Mengirim...' : '2. Kirim Pesan Sambutan'}
+        </button>
+        {tgWelcome && (
+          <div className={`alert ${tgWelcome.ok ? 'alert-success' : 'alert-danger'} fade-in`} style={{ marginTop: 8 }}>
+            {tgWelcome.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+            {tgWelcome.msg}
+          </div>
+        )}
       </div>
 
       {/* Tentang */}

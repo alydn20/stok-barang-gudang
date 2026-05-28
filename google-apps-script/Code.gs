@@ -38,19 +38,17 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents)
 
-    // Telegram webhook update
-    if (data.update_id !== undefined) return handleTelegramUpdate(data)
-
     const action = data.action
     let result
-    if      (action === 'stockIn')        result = stockIn(data)
-    else if (action === 'stockOut')       result = stockOut(data)
-    else if (action === 'updateItem')     result = updateItem(data)
-    else if (action === 'addItem')        result = addItem(data)
-    else if (action === 'deleteItem')     result = deleteItem(data)
-    else if (action === 'saveSettings')   result = saveSettings(data)
-    else if (action === 'sendDailyReport') result = sendDailyReport()
-    else                                   result = { error: 'Unknown action: ' + action }
+    if      (action === 'stockIn')           result = stockIn(data)
+    else if (action === 'stockOut')          result = stockOut(data)
+    else if (action === 'updateItem')        result = updateItem(data)
+    else if (action === 'addItem')           result = addItem(data)
+    else if (action === 'deleteItem')        result = deleteItem(data)
+    else if (action === 'saveSettings')      result = saveSettings(data)
+    else if (action === 'sendDailyReport')   result = sendDailyReport()
+    else if (action === 'sendWelcomeMessage') result = sendWelcomeMessage()
+    else                                      result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
     return jsonResponse({ error: err.message })
@@ -407,78 +405,47 @@ function saveSettings(data) {
 
 // ---- TELEGRAM ----
 
-function _sendTelegramMessage(token, chatId, text, inlineButtons) {
-  var payload = { chat_id: chatId, text: text, parse_mode: 'HTML' }
-  if (inlineButtons && inlineButtons.length > 0)
-    payload.reply_markup = JSON.stringify({ inline_keyboard: [inlineButtons] })
+function _sendTelegramMessage(token, chatId, text) {
   return UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
     method: 'POST',
     contentType: 'application/json',
-    payload: JSON.stringify(payload),
+    payload: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' }),
     muteHttpExceptions: true,
   })
 }
 
-function _answerCallback(token, callbackQueryId) {
-  UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/answerCallbackQuery', {
-    method: 'POST', contentType: 'application/json',
-    payload: JSON.stringify({ callback_query_id: callbackQueryId }),
-    muteHttpExceptions: true,
-  })
+// Kirim daftar panjang dalam beberapa pesan (50 item per pesan)
+function _sendList(token, chatId, title, items, lineFunc) {
+  var LIMIT = 50
+  for (var i = 0; i < items.length; i += LIMIT) {
+    var chunk = items.slice(i, i + LIMIT)
+    var part  = Math.floor(i / LIMIT) + 1
+    var total = Math.ceil(items.length / LIMIT)
+    var L = ['<b>' + title + (total > 1 ? '  (' + part + '/' + total + ')' : '') + '</b>', '']
+    chunk.forEach(function(it) { L.push(lineFunc(it)) })
+    _sendTelegramMessage(token, chatId, L.join('\n'))
+    if (i + LIMIT < items.length) Utilities.sleep(500)
+  }
 }
 
-function handleTelegramUpdate(update) {
-  const props = PropertiesService.getScriptProperties()
-  const token = props.getProperty('telegram_bot_token')
-  if (!token) return jsonResponse({ ok: true })
-
-  // Tombol inline ditekan
-  if (update.callback_query) {
-    const cb     = update.callback_query
-    const chatId = cb.message.chat.id
-    _answerCallback(token, cb.id)
-    const expDays = Number(props.getProperty('exp_threshold_days') || 30)
-    const details = _getReportDetails(expDays)
-
-    if (cb.data === 'list_low') {
-      const items = details.lowItems
-      const L = ['<b>STOK SEDIKIT — DAFTAR LENGKAP (' + items.length + ' item)</b>', '']
-      items.slice(0, 50).forEach(function(it) { L.push(it.nama + '  —  ' + it.qty + ' pcs') })
-      if (items.length > 50) L.push('\n... dan ' + (items.length - 50) + ' item lainnya')
-      L.push('\n<i>Stok Gudang  |  by Aliyudin</i>')
-      _sendTelegramMessage(token, chatId, L.join('\n'))
-    }
-    if (cb.data === 'list_exp') {
-      const items = details.expiringItems
-      const L = ['<b>SEGERA KADALUARSA — DAFTAR LENGKAP (' + items.length + ' item)</b>', '']
-      items.slice(0, 50).forEach(function(it) { L.push(it.nama + '  —  Exp: ' + it.exp) })
-      if (items.length > 50) L.push('\n... dan ' + (items.length - 50) + ' item lainnya')
-      L.push('\n<i>Stok Gudang  |  by Aliyudin</i>')
-      _sendTelegramMessage(token, chatId, L.join('\n'))
-    }
-    return jsonResponse({ ok: true })
-  }
-
-  // Pesan teks biasa
-  const msg = update.message
-  if (!msg) return jsonResponse({ ok: true })
-  const chatId = msg.chat.id
-  const text   = (msg.text || '').trim()
-
-  if (text.startsWith('/start')) {
-    _sendTelegramMessage(token, chatId,
-      '<b>Stok Gudang — Sistem Notifikasi</b>\n\n' +
-      'Anda telah terdaftar sebagai penerima laporan harian.\n\n' +
-      'Laporan dikirim otomatis setiap hari pukul 07.00 WIB dan mencakup:\n' +
-      '  - Ringkasan total stok\n' +
-      '  - Pergerakan barang hari ini\n' +
-      '  - Daftar item dengan stok sedikit\n' +
-      '  - Daftar item yang mendekati kadaluarsa\n\n' +
-      'Tidak diperlukan tindakan lain.\n\n' +
-      '<i>Stok Gudang  |  by Aliyudin</i>'
-    )
-  }
-  return jsonResponse({ ok: true })
+function sendWelcomeMessage() {
+  var props  = PropertiesService.getScriptProperties()
+  var token  = props.getProperty('telegram_bot_token')
+  var chatId = props.getProperty('telegram_chat_id')
+  if (!token || !chatId) return { success: false, error: 'Token atau Chat ID belum dikonfigurasi.' }
+  var resp   = _sendTelegramMessage(token, chatId,
+    '<b>Stok Gudang — Sistem Notifikasi</b>\n\n' +
+    'Konfigurasi notifikasi berhasil.\n\n' +
+    'Laporan dikirim otomatis setiap hari pukul 07.00 WIB dan mencakup:\n' +
+    '  - Ringkasan total stok\n' +
+    '  - Pergerakan barang hari ini\n' +
+    '  - Daftar item dengan stok sedikit\n' +
+    '  - Daftar item yang mendekati kadaluarsa\n\n' +
+    '<i>Stok Gudang  |  by Aliyudin</i>'
+  )
+  var result = JSON.parse(resp.getContentText())
+  if (!result.ok) return { success: false, error: result.description }
+  return { success: true }
 }
 
 function sendDailyReport() {
@@ -505,18 +472,13 @@ function sendDailyReport() {
   L.push('Masuk Hari Ini    : <b>' + stats.todayMasuk  + '</b>')
   L.push('Keluar Hari Ini   : <b>' + stats.todayKeluar + '</b>')
 
-  const buttons = []
-
   if (stats.lowStock > 0) {
     L.push('')
     L.push('<b>STOK SEDIKIT  (' + stats.lowStock + ' item)</b>')
     details.lowItems.slice(0, 10).forEach(function(it) {
       L.push('  ' + it.nama + '  —  ' + it.qty + ' pcs')
     })
-    if (stats.lowStock > 10) {
-      L.push('  ... dan ' + (stats.lowStock - 10) + ' item lainnya')
-      buttons.push({ text: 'Lihat Stok Sedikit (' + stats.lowStock + ')', callback_data: 'list_low' })
-    }
+    if (stats.lowStock > 10) L.push('  ... lihat pesan berikutnya untuk daftar lengkap')
   }
 
   if (stats.expiringSoon > 0) {
@@ -525,10 +487,7 @@ function sendDailyReport() {
     details.expiringItems.slice(0, 10).forEach(function(it) {
       L.push('  ' + it.nama + '  —  ' + it.exp)
     })
-    if (stats.expiringSoon > 10) {
-      L.push('  ... dan ' + (stats.expiringSoon - 10) + ' item lainnya')
-      buttons.push({ text: 'Lihat Segera Exp (' + stats.expiringSoon + ')', callback_data: 'list_exp' })
-    }
+    if (stats.expiringSoon > 10) L.push('  ... lihat pesan berikutnya untuk daftar lengkap')
   }
 
   if (stats.expired > 0) {
@@ -549,10 +508,29 @@ function sendDailyReport() {
   L.push('─────────────────────────')
   L.push('<i>Stok Gudang  |  by Aliyudin</i>')
 
-  var resp   = _sendTelegramMessage(token, chatId, L.join('\n'), buttons)
+  var resp   = _sendTelegramMessage(token, chatId, L.join('\n'))
   var result = JSON.parse(resp.getContentText())
   Logger.log('Telegram response: ' + JSON.stringify(result))
   if (!result.ok) return { success: false, error: result.description || 'Telegram API error' }
+
+  // Kirim daftar lengkap sebagai pesan terpisah jika > 10
+  if (details.lowItems.length > 10) {
+    Utilities.sleep(500)
+    _sendList(token, chatId,
+      'STOK SEDIKIT — DAFTAR LENGKAP (' + details.lowItems.length + ' item)',
+      details.lowItems,
+      function(it) { return it.nama + '  —  ' + it.qty + ' pcs' }
+    )
+  }
+  if (details.expiringItems.length > 10) {
+    Utilities.sleep(500)
+    _sendList(token, chatId,
+      'SEGERA KADALUARSA — DAFTAR LENGKAP (' + details.expiringItems.length + ' item)',
+      details.expiringItems,
+      function(it) { return it.nama + '  —  Exp: ' + it.exp }
+    )
+  }
+
   return { success: true }
 }
 
