@@ -465,6 +465,22 @@ function initTelegramConfig() {
   Logger.log('Telegram config saved to PropertiesService.')
 }
 
+function testTelegramDirect() {
+  var token  = '8856526064:AAGK6KG2SVpW0c-4iqdL2wA9Kpg49ZSoFr8'
+  var chatId = '1345258899'
+  try {
+    var resp = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify({ chat_id: chatId, text: '✅ Test dari GAS berhasil!' }),
+      muteHttpExceptions: true,
+    })
+    Logger.log('Response: ' + resp.getContentText())
+  } catch(err) {
+    Logger.log('ERROR: ' + err.message)
+  }
+}
+
 function checkTelegramConfig() {
   var props   = PropertiesService.getScriptProperties()
   var token   = props.getProperty('telegram_bot_token')
