@@ -26,7 +26,9 @@ export default function Home() {
 
   const loadStats = useCallback((startDate, endDate) => {
     setLoading(true)
-    sheetsApi.getStats(startDate && endDate ? { startDate, endDate } : {})
+    const expDays = Number(localStorage.getItem('exp_threshold_days') || 30)
+    const params  = { expDays, ...(startDate && endDate ? { startDate, endDate } : {}) }
+    sheetsApi.getStats(params)
       .then(data => {
         setStats(data)
         try { localStorage.setItem(LS_STATS, JSON.stringify(data)) } catch {}

@@ -377,13 +377,14 @@ function getStats(params) {
   const sheetOut= ss.getSheetByName(SHEET_KELUAR)
   const startDate = params && params.startDate ? new Date(params.startDate) : null
   const endDate   = params && params.endDate   ? new Date(params.endDate)   : null
+  const expDays   = params && params.expDays   ? Math.max(1, Number(params.expDays)) : 30
 
   const totMasuk  = _sumByKey(sheetIn)
   const totKeluar = _sumByKey(sheetOut)
 
   let totalItem = 0, totalStok = 0, lowStock = 0, expiringSoon = 0, expired = 0
   const today = new Date(); today.setHours(0,0,0,0)
-  const in30  = new Date(today); in30.setDate(today.getDate() + 30)
+  const in30  = new Date(today); in30.setDate(today.getDate() + expDays)
 
   if (sheet && sheet.getLastRow() > 1) {
     const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues().filter(r => r[0])
