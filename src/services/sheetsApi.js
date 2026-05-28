@@ -46,7 +46,13 @@ async function postGAS(action, data) {
 export const sheetsApi = {
   searchByBarcode: (barcode)      => callGAS('search', { barcode }),
   getAllStock:      ()             => callGAS('getAllStock'),
-  getHistory:      (barcode = '') => callGAS('getHistory', barcode ? { barcode } : {}),
+  getHistory: (barcode = '', startDate = '', endDate = '') => {
+    const p = {}
+    if (barcode)   p.barcode   = barcode
+    if (startDate) p.startDate = startDate
+    if (endDate)   p.endDate   = endDate
+    return callGAS('getHistory', p)
+  },
   getStats:        (params = {})  => callGAS('getStats', params),
   stockIn:         (data)         => postGAS('stockIn', data),
   stockOut:        (data)         => postGAS('stockOut', data),

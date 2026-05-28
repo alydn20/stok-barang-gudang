@@ -24,7 +24,7 @@ function doGet(e) {
     if      (action === 'ping')       result = { status: 'ok' }
     else if (action === 'search')     result = searchByBarcode(e.parameter.barcode)
     else if (action === 'getAllStock') result = getAllStock()
-    else if (action === 'getHistory') result = getHistory(e.parameter.barcode)
+    else if (action === 'getHistory') result = getHistory(e.parameter)
     else if (action === 'getStats')   result = getStats(e.parameter)
     else                              result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
@@ -149,36 +149,42 @@ function getAllStock() {
 
 // ---- HISTORY ----
 
-function getHistory(barcode) {
+function getHistory(params) {
+  const barcode   = params && params.barcode   ? params.barcode.toString().trim() : ''
+  const startDate = params && params.startDate ? new Date(params.startDate)       : null
+  const endDate   = params && params.endDate   ? (() => { const d = new Date(params.endDate); d.setHours(23,59,59,999); return d })() : null
+  const limit     = barcode ? 50 : 500
+
   const ss       = SpreadsheetApp.getActiveSpreadsheet()
   const sheetIn  = ss.getSheetByName(SHEET_MASUK)
   const sheetOut = ss.getSheetByName(SHEET_KELUAR)
   const history  = []
 
+  function rowToObj(r, tipe) {
+    const d = r[0] ? new Date(r[0]) : null
+    if (startDate && d && d < startDate) return null
+    if (endDate   && d && d > endDate)   return null
+    if (barcode && r[1].toString().trim() !== barcode) return null
+    return {
+      tanggal: d ? d.toISOString() : '',
+      tipe, barcode: r[1].toString(),
+      nama: r[2].toString(), qty: r[3].toString(),
+      catatan: r[4].toString(), batch: r[5] ? r[5].toString() : '',
+    }
+  }
+
   if (sheetIn && sheetIn.getLastRow() > 1) {
     sheetIn.getRange(2, 1, sheetIn.getLastRow() - 1, 6).getValues()
-      .filter(r => !barcode || r[1].toString().trim() === barcode.toString().trim())
-      .forEach(r => history.push({
-        tanggal: r[0] ? new Date(r[0]).toISOString() : '',
-        tipe: 'MASUK', barcode: r[1].toString(),
-        nama: r[2].toString(), qty: r[3].toString(),
-        catatan: r[4].toString(), batch: r[5] ? r[5].toString() : '',
-      }))
+      .forEach(r => { const obj = rowToObj(r, 'MASUK'); if (obj) history.push(obj) })
   }
 
   if (sheetOut && sheetOut.getLastRow() > 1) {
     sheetOut.getRange(2, 1, sheetOut.getLastRow() - 1, 6).getValues()
-      .filter(r => !barcode || r[1].toString().trim() === barcode.toString().trim())
-      .forEach(r => history.push({
-        tanggal: r[0] ? new Date(r[0]).toISOString() : '',
-        tipe: 'KELUAR', barcode: r[1].toString(),
-        nama: r[2].toString(), qty: r[3].toString(),
-        catatan: r[4].toString(), batch: r[5] ? r[5].toString() : '',
-      }))
+      .forEach(r => { const obj = rowToObj(r, 'KELUAR'); if (obj) history.push(obj) })
   }
 
   history.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
-  return { history: history.slice(0, 50) }
+  return { history: history.slice(0, limit) }
 }
 
 // ---- STOCK IN ----

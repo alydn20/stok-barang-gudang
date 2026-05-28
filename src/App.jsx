@@ -9,6 +9,7 @@ import StockIn from './pages/StockIn'
 import StockOut from './pages/StockOut'
 import Search from './pages/Search'
 import StockList from './pages/StockList'
+import History from './pages/History'
 import Settings from './pages/Settings'
 
 export default function App() {
@@ -22,7 +23,8 @@ export default function App() {
               <Route path="/masuk"   element={<StockIn />}   />
               <Route path="/keluar"  element={<StockOut />}  />
               <Route path="/cari"    element={<Search />}    />
-              <Route path="/stok"    element={<StockList />} />
+              <Route path="/stok"     element={<StockList />} />
+              <Route path="/riwayat" element={<History />}   />
               <Route path="/settings"element={<Settings />}  />
             </Routes>
           </Layout>
