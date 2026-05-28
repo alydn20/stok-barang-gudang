@@ -440,18 +440,13 @@ function _sendTelegramMessage(token, chatId, text) {
   })
 }
 
-// Kirim daftar panjang dalam beberapa pesan (50 item per pesan)
-function _sendList(token, chatId, title, items, lineFunc) {
-  var LIMIT = 50
-  for (var i = 0; i < items.length; i += LIMIT) {
-    var chunk = items.slice(i, i + LIMIT)
-    var part  = Math.floor(i / LIMIT) + 1
-    var total = Math.ceil(items.length / LIMIT)
-    var L = ['<b>' + title + (total > 1 ? '  (' + part + '/' + total + ')' : '') + '</b>', '']
-    chunk.forEach(function(it) { L.push(lineFunc(it)) })
-    _sendTelegramMessage(token, chatId, L.join('\n'))
-    if (i + LIMIT < items.length) Utilities.sleep(500)
-  }
+function _sendTelegramDocument(token, chatId, filename, content, caption) {
+  var blob    = Utilities.newBlob(content, 'text/plain', filename)
+  var payload = { chat_id: String(chatId), document: blob }
+  if (caption) payload.caption = caption
+  return UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendDocument', {
+    method: 'POST', payload: payload, muteHttpExceptions: true,
+  })
 }
 
 function sendWelcomeMessage() {
@@ -504,7 +499,7 @@ function sendDailyReport() {
     details.lowItems.slice(0, 10).forEach(function(it) {
       L.push('  ' + it.nama + '  —  ' + it.qty + ' pcs')
     })
-    if (stats.lowStock > 10) L.push('  ... lihat pesan berikutnya untuk daftar lengkap')
+    if (stats.lowStock > 10) L.push('  ... daftar lengkap terlampir')
   }
 
   if (stats.expiringSoon > 0) {
@@ -513,7 +508,7 @@ function sendDailyReport() {
     details.expiringItems.slice(0, 10).forEach(function(it) {
       L.push('  ' + it.nama + '  —  ' + it.exp)
     })
-    if (stats.expiringSoon > 10) L.push('  ... lihat pesan berikutnya untuk daftar lengkap')
+    if (stats.expiringSoon > 10) L.push('  ... daftar lengkap terlampir')
   }
 
   if (stats.expired > 0) {
@@ -522,7 +517,7 @@ function sendDailyReport() {
     details.expiredItems.slice(0, 10).forEach(function(it) {
       L.push('  ' + it.nama + '  —  ' + it.exp)
     })
-    if (stats.expired > 10) L.push('  ... dan ' + (stats.expired - 10) + ' item lainnya')
+    if (stats.expired > 10) L.push('  ... daftar lengkap terlampir')
   }
 
   if (stats.lowStock === 0 && stats.expiringSoon === 0 && stats.expired === 0) {
@@ -539,22 +534,25 @@ function sendDailyReport() {
   Logger.log('Telegram response: ' + JSON.stringify(result))
   if (!result.ok) return { success: false, error: result.description || 'Telegram API error' }
 
-  // Kirim daftar lengkap sebagai pesan terpisah jika > 10
+  // Kirim .txt jika list > 10
   if (details.lowItems.length > 10) {
-    Utilities.sleep(500)
-    _sendList(token, chatId,
-      'STOK SEDIKIT — DAFTAR LENGKAP (' + details.lowItems.length + ' item)',
-      details.lowItems,
-      function(it) { return it.nama + '  —  ' + it.qty + ' pcs' }
-    )
+    var lines = ['STOK SEDIKIT — ' + dateStr, 'Total: ' + details.lowItems.length + ' item', '']
+    details.lowItems.forEach(function(it, i) {
+      lines.push((i+1) + '. ' + it.nama + ' — ' + it.qty + ' pcs')
+    })
+    Utilities.sleep(300)
+    _sendTelegramDocument(token, chatId, 'stok_sedikit_' + dateStr.replace(/ /g,'_') + '.txt',
+      lines.join('\n'), 'Stok Sedikit — Daftar Lengkap (' + details.lowItems.length + ' item)')
   }
+
   if (details.expiringItems.length > 10) {
-    Utilities.sleep(500)
-    _sendList(token, chatId,
-      'SEGERA KADALUARSA — DAFTAR LENGKAP (' + details.expiringItems.length + ' item)',
-      details.expiringItems,
-      function(it) { return it.nama + '  —  Exp: ' + it.exp }
-    )
+    var lines2 = ['SEGERA KADALUARSA — ' + dateStr, 'Total: ' + details.expiringItems.length + ' item', '']
+    details.expiringItems.forEach(function(it, i) {
+      lines2.push((i+1) + '. ' + it.nama + ' — Exp: ' + it.exp)
+    })
+    Utilities.sleep(300)
+    _sendTelegramDocument(token, chatId, 'segera_exp_' + dateStr.replace(/ /g,'_') + '.txt',
+      lines2.join('\n'), 'Segera Kadaluarsa — Daftar Lengkap (' + details.expiringItems.length + ' item)')
   }
 
   return { success: true }
