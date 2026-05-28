@@ -11,14 +11,14 @@ const PRESETS = [
 
 function toDateStr(d) { return d.toISOString().slice(0, 10) }
 
-export default function HistoryPanel({ defaultType = 'all' }) {
+export default function HistoryPanel({ defaultType = 'all', fixedType = null }) {
   const [rows,        setRows]        = useState([])
   const [loading,     setLoading]     = useState(true)
   const [preset,      setPreset]      = useState(7)
   const [customStart, setCustomStart] = useState('')
   const [customEnd,   setCustomEnd]   = useState('')
   const [showCustom,  setShowCustom]  = useState(false)
-  const [typeFilter,  setTypeFilter]  = useState(defaultType)
+  const [typeFilter,  setTypeFilter]  = useState(fixedType || defaultType)
   const [search,      setSearch]      = useState('')
 
   const load = useCallback((startDate, endDate) => {
@@ -104,18 +104,20 @@ export default function HistoryPanel({ defaultType = 'all' }) {
           </div>
         )}
 
-        <div style={s.typeRow}>
-          {[
-            { v: 'all',    l: `Semua (${rows.length})`   },
-            { v: 'MASUK',  l: `Masuk (${masukCount})`    },
-            { v: 'KELUAR', l: `Keluar (${keluarCount})`  },
-          ].map(({ v, l }) => (
-            <button key={v} onClick={() => setTypeFilter(v)}
-              style={{ ...s.typeBtn, ...(typeFilter === v ? (v === 'MASUK' ? s.typeMasuk : v === 'KELUAR' ? s.typeKeluar : s.typeAll) : {}) }}>
-              {l}
-            </button>
-          ))}
-        </div>
+        {!fixedType && (
+          <div style={s.typeRow}>
+            {[
+              { v: 'all',    l: `Semua (${rows.length})`   },
+              { v: 'MASUK',  l: `Masuk (${masukCount})`    },
+              { v: 'KELUAR', l: `Keluar (${keluarCount})`  },
+            ].map(({ v, l }) => (
+              <button key={v} onClick={() => setTypeFilter(v)}
+                style={{ ...s.typeBtn, ...(typeFilter === v ? (v === 'MASUK' ? s.typeMasuk : v === 'KELUAR' ? s.typeKeluar : s.typeAll) : {}) }}>
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
 
         <input className="input" placeholder="Cari nama, barcode, batch..."
           style={{ fontSize: 13 }}

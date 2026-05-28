@@ -116,7 +116,7 @@ export default function StockIn() {
         </button>
       </div>
 
-      {tab === 'riwayat' && <HistoryPanel defaultType="MASUK" />}
+      {tab === 'riwayat' && <HistoryPanel fixedType="MASUK" />}
 
       {tab === 'form' && <form onSubmit={handleSubmit} style={s.form}>
         {/* Barcode */}

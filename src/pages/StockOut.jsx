@@ -108,7 +108,7 @@ export default function StockOut() {
         </button>
       </div>
 
-      {tab === 'riwayat' && <HistoryPanel defaultType="KELUAR" />}
+      {tab === 'riwayat' && <HistoryPanel fixedType="KELUAR" />}
 
       {tab === 'form' && <form onSubmit={handleSubmit} style={s.form}>
         {/* Barcode */}
