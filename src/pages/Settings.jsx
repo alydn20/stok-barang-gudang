@@ -3,7 +3,6 @@ import {
   CheckCircle2, XCircle, Save, Wifi,
   Settings2, Info, Loader2, Server,
   HardDrive, Cloud, SlidersHorizontal, CalendarClock,
-  BellRing, Send, Eye, EyeOff,
 } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
@@ -29,13 +28,6 @@ export default function Settings() {
   const [source,     setSource]     = useState('')
   const [strategy,       setStrategy]       = useState(localStorage.getItem(LS_STRATEGY) || 'MANUAL')
   const [expDays,        setExpDays]        = useState(Number(localStorage.getItem(LS_EXP_DAYS) || 30))
-  const [tgToken,        setTgToken]        = useState('')
-  const [tgChatId,       setTgChatId]       = useState('')
-  const [tgHour,         setTgHour]         = useState(7)
-  const [tgSaving,       setTgSaving]       = useState(false)
-  const [tgTesting,      setTgTesting]      = useState(false)
-  const [tgResult,       setTgResult]       = useState(null)
-  const [showToken,      setShowToken]      = useState(false)
 
   useEffect(() => {
     // Load GAS URL
@@ -54,7 +46,7 @@ export default function Settings() {
       })
       .finally(() => setLoading(false))
 
-    // Load semua settings dari GAS
+    // Load expDays dari GAS
     sheetsApi.getSettings()
       .then(d => {
         if (d.expDays != null) {
@@ -62,9 +54,6 @@ export default function Settings() {
           setExpDays(n)
           localStorage.setItem(LS_EXP_DAYS, String(n))
         }
-        if (d.telegramBotToken) setTgToken(d.telegramBotToken)
-        if (d.telegramChatId)   setTgChatId(d.telegramChatId)
-        if (d.telegramHour != null) setTgHour(Number(d.telegramHour))
       })
       .catch(() => {})
   }, [])
@@ -72,26 +61,6 @@ export default function Settings() {
   const handleStrategyChange = (val) => {
     setStrategy(val)
     localStorage.setItem(LS_STRATEGY, val)
-  }
-
-  const handleTgSave = async () => {
-    setTgSaving(true); setTgResult(null)
-    try {
-      await sheetsApi.saveSettings({ telegramBotToken: tgToken, telegramChatId: tgChatId, telegramHour: tgHour })
-      setTgResult({ ok: true, msg: 'Pengaturan Telegram tersimpan.' })
-    } catch (e) { setTgResult({ ok: false, msg: e.message }) }
-    finally { setTgSaving(false) }
-  }
-
-  const handleTgTest = async () => {
-    setTgTesting(true); setTgResult(null)
-    try {
-      const res = await sheetsApi.sendTelegramReport()
-      setTgResult(res.success
-        ? { ok: true,  msg: 'Notifikasi berhasil dikirim ke Telegram!' }
-        : { ok: false, msg: res.error || 'Gagal mengirim notifikasi.' })
-    } catch (e) { setTgResult({ ok: false, msg: e.message }) }
-    finally { setTgTesting(false) }
   }
 
   const handleExpDaysChange = (val) => {
@@ -248,67 +217,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Notifikasi Telegram */}
-      <div className="card" style={s.card}>
-        <div style={s.cardHeader}>
-          <BellRing size={18} color="#0EA5E9" />
-          <h3 style={s.cardTitle}>Notifikasi Telegram</h3>
-        </div>
-        <p style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 1.6 }}>
-          Kirim laporan harian otomatis ke bot Telegram.
-          Buat bot via <strong>@BotFather</strong> → salin token → dapatkan Chat ID via <strong>@userinfobot</strong>.
-        </p>
-
-        <label className="label">Bot Token</label>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input className="input" type={showToken ? 'text' : 'password'}
-            value={tgToken} onChange={e => { setTgToken(e.target.value); setTgResult(null) }}
-            placeholder="1234567890:AAF..." style={{ flex: 1, fontFamily: 'monospace', fontSize: 12 }} />
-          <button type="button" onClick={() => setShowToken(v => !v)}
-            style={{ ...s.iconSmallBtn }} title={showToken ? 'Sembunyikan' : 'Tampilkan'}>
-            {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        </div>
-
-        <label className="label">Chat ID</label>
-        <input className="input" value={tgChatId}
-          onChange={e => { setTgChatId(e.target.value); setTgResult(null) }}
-          placeholder="-100xxxxxxxxxx atau angka positif"
-          style={{ marginBottom: 10 }} />
-
-        <label className="label">Jam Kirim (WIB)</label>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-          {[6, 7, 8, 9, 12, 18, 20].map(h => (
-            <button key={h} type="button" onClick={() => setTgHour(h)}
-              style={{ ...s.expBtn, ...(tgHour === h ? s.tgHourActive : {}) }}>
-              {String(h).padStart(2,'0')}:00
-            </button>
-          ))}
-        </div>
-
-        {tgResult && (
-          <div className={`alert ${tgResult.ok ? 'alert-success' : 'alert-danger'} fade-in`} style={{ marginBottom: 10 }}>
-            {tgResult.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
-            {tgResult.msg}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleTgSave} disabled={tgSaving} className="btn btn-primary" style={{ flex: 1 }}>
-            {tgSaving ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-            {tgSaving ? 'Menyimpan...' : 'Simpan'}
-          </button>
-          <button onClick={handleTgTest} disabled={tgTesting || !tgToken || !tgChatId} className="btn btn-ghost" style={{ flex: 1 }}>
-            {tgTesting ? <Loader2 size={15} className="spin" /> : <Send size={15} />}
-            {tgTesting ? 'Mengirim...' : 'Test Kirim'}
-          </button>
-        </div>
-
-        <div style={s.tgNote}>
-          <strong>Agar otomatis tiap hari:</strong> buka GAS editor → jalankan fungsi <code style={s.code}>setupDailyTrigger()</code> sekali → trigger jam {String(tgHour).padStart(2,'0')}:00 WIB aktif.
-        </div>
-      </div>
-
       {/* Tentang */}
       <div className="card" style={s.card}>
         <div style={s.cardHeader}><Info size={18} color="#64748B" /><h3 style={s.cardTitle}>Tentang</h3></div>
@@ -349,8 +257,4 @@ const s = {
   stratActive: { borderColor: '#2563EB', background: '#EFF6FF' },
   expBtn:        { padding: '6px 14px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#64748B' },
   expBtnActive:  { borderColor: '#D97706', background: '#FFFBEB', color: '#92400E' },
-  iconSmallBtn:  { width: 40, height: 40, borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', flexShrink: 0 },
-  tgHourActive:  { borderColor: '#0EA5E9', background: '#F0F9FF', color: '#0369A1' },
-  tgNote:        { marginTop: 12, fontSize: 11, color: '#64748B', lineHeight: 1.6, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '8px 10px' },
-  code:          { background: '#E2E8F0', padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11 },
 }

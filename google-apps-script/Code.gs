@@ -453,14 +453,21 @@ function sendDailyReport() {
   return { success: true }
 }
 
+// Jalankan fungsi ini SEKALI dari GAS editor untuk menyimpan konfigurasi Telegram
+function initTelegramConfig() {
+  var props = PropertiesService.getScriptProperties()
+  props.setProperty('telegram_bot_token', '8856526064:AAGK6KG2SVpW0c-4iqdL2wA9Kpg49ZSoFr8')
+  props.setProperty('telegram_chat_id',   '1345258899')
+  props.setProperty('telegram_hour',      '7')
+  Logger.log('Telegram config saved to PropertiesService.')
+}
+
 function setupDailyTrigger() {
   var props = PropertiesService.getScriptProperties()
   var hour  = Number(props.getProperty('telegram_hour') || 7)
-  // Hapus trigger lama
   ScriptApp.getProjectTriggers().forEach(function(t) {
     if (t.getHandlerFunction() === 'sendDailyReport') ScriptApp.deleteTrigger(t)
   })
-  // Buat trigger baru
   ScriptApp.newTrigger('sendDailyReport')
     .timeBased()
     .atHour(hour)
