@@ -49,7 +49,7 @@ export default function UpdateGate({ children }) {
           {[
             'Pengaturan batas hari peringatan kadaluarsa',
             'Setelan disimpan ke server (Vercel KV)',
-            'Filter "Segera Exp" mengikuti batas yang diatur',
+            'Pembaruan wajib sebelum app bisa digunakan',
           ].map(t => (
             <div key={t} style={s.highlightRow}>
               <span style={s.dot} />

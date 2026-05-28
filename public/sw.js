@@ -1,7 +1,7 @@
-// Stok Barang (By Aliyudin) — v3
-const CACHE = 'stok-barang-v3'
+// Stok Barang (By Aliyudin) — v4
+const CACHE = 'stok-barang-v4'
 
-self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('install', () => { /* tunggu perintah SKIP_WAITING dari user */ })
 
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys()
