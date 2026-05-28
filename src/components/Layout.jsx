@@ -56,7 +56,6 @@ export default function Layout({ children }) {
           <div className="sidebar-footer-row">
             <div className="sidebar-footer-avatar">A</div>
             <div>
-              <span className="sidebar-footer-name">Aliyudin</span>
               <span className="sidebar-footer-tag">Admin</span>
             </div>
           </div>
