@@ -490,7 +490,7 @@ function sendDailyReport() {
 
   if (stats.expiringSoon > 0) {
     L.push('')
-    L.push('<b>SEGERA KADALUARSA  (' + stats.expiringSoon + ' item, <= ' + expDays + ' hari)</b>')
+    L.push('<b>SEGERA KADALUARSA  (' + stats.expiringSoon + ' item, &lt;= ' + expDays + ' hari)</b>')
     details.expiringItems.forEach(function(it) {
       L.push('  ' + it.nama + '  —  ' + it.exp)
     })
