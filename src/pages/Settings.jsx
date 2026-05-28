@@ -3,6 +3,7 @@ import {
   CheckCircle2, XCircle, Save, Wifi,
   Settings2, Info, Loader2, Server,
   HardDrive, Cloud, SlidersHorizontal, CalendarClock,
+  BellRing, ExternalLink,
 } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
@@ -217,6 +218,30 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Notifikasi Telegram */}
+      <div className="card" style={s.card}>
+        <div style={s.cardHeader}>
+          <BellRing size={18} color="#0EA5E9" />
+          <h3 style={s.cardTitle}>Notifikasi Telegram</h3>
+        </div>
+        <p style={{ fontSize: 12, color: '#64748B', marginBottom: 14, lineHeight: 1.7 }}>
+          Laporan harian otomatis dikirim ke bot Telegram setiap hari pukul <strong>07:00 WIB</strong>.
+          Wajib follow bot di bawah agar menerima notifikasi.
+        </p>
+        <a
+          href="https://t.me/StokBarangByAliyudin_BOT"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={s.tgFollowBtn}>
+          <BellRing size={15} />
+          Follow @StokBarangByAliyudin_BOT
+          <ExternalLink size={13} style={{ marginLeft: 'auto' }} />
+        </a>
+        <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 8, textAlign: 'center' }}>
+          Ketuk tombol di atas → buka Telegram → klik <strong>Start</strong>
+        </p>
+      </div>
+
       {/* Tentang */}
       <div className="card" style={s.card}>
         <div style={s.cardHeader}><Info size={18} color="#64748B" /><h3 style={s.cardTitle}>Tentang</h3></div>
@@ -257,4 +282,5 @@ const s = {
   stratActive: { borderColor: '#2563EB', background: '#EFF6FF' },
   expBtn:        { padding: '6px 14px', borderRadius: 99, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#64748B' },
   expBtnActive:  { borderColor: '#D97706', background: '#FFFBEB', color: '#92400E' },
+  tgFollowBtn:   { display: 'flex', alignItems: 'center', gap: 8, padding: '11px 16px', borderRadius: 10, background: '#0EA5E9', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', width: '100%', boxSizing: 'border-box' },
 }
