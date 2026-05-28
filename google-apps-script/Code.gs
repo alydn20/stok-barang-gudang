@@ -555,54 +555,39 @@ function _getReportDetails(expDays) {
   return { lowItems: lowItems, expiringItems: expiringItems, expiredItems: expiredItems }
 }
 
-// Jalankan fungsi ini SEKALI dari GAS editor untuk menyimpan konfigurasi Telegram
-function initTelegramConfig() {
-  var props = PropertiesService.getScriptProperties()
-  props.setProperty('telegram_bot_token', '8856526064:AAGK6KG2SVpW0c-4iqdL2wA9Kpg49ZSoFr8')
-  props.setProperty('telegram_chat_id',   '1345258899')
-  props.setProperty('telegram_hour',      '7')
-  Logger.log('Telegram config saved to PropertiesService.')
-}
-
-function testTelegramDirect() {
+// Jalankan fungsi ini SEKALI dari GAS editor — simpan config, set webhook, buat trigger harian
+function setupTelegram() {
   var token  = '8856526064:AAGK6KG2SVpW0c-4iqdL2wA9Kpg49ZSoFr8'
   var chatId = '1345258899'
-  try {
-    var resp = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
-      method: 'POST',
-      contentType: 'application/json',
-      payload: JSON.stringify({ chat_id: chatId, text: '✅ Test dari GAS berhasil!' }),
-      muteHttpExceptions: true,
-    })
-    Logger.log('Response: ' + resp.getContentText())
-  } catch(err) {
-    Logger.log('ERROR: ' + err.message)
-  }
-}
+  var hour   = 7
 
-function checkTelegramConfig() {
-  var props   = PropertiesService.getScriptProperties()
-  var token   = props.getProperty('telegram_bot_token')
-  var chatId  = props.getProperty('telegram_chat_id')
-  var hour    = props.getProperty('telegram_hour')
-  Logger.log('token  : ' + (token  ? token.substring(0, 10) + '...' : 'KOSONG'))
-  Logger.log('chatId : ' + (chatId || 'KOSONG'))
-  Logger.log('hour   : ' + (hour   || 'KOSONG'))
-}
-
-function setupDailyTrigger() {
+  // 1. Simpan ke PropertiesService
   var props = PropertiesService.getScriptProperties()
-  var hour  = Number(props.getProperty('telegram_hour') || 7)
+  props.setProperty('telegram_bot_token', token)
+  props.setProperty('telegram_chat_id',   chatId)
+  props.setProperty('telegram_hour',      String(hour))
+  Logger.log('[1/3] Config tersimpan.')
+
+  // 2. Set webhook untuk auto-reply /start
+  var gasUrl   = ScriptApp.getService().getUrl()
+  var whResp   = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/setWebhook', {
+    method: 'POST', contentType: 'application/json',
+    payload: JSON.stringify({ url: gasUrl }), muteHttpExceptions: true,
+  })
+  Logger.log('[2/3] Webhook: ' + whResp.getContentText())
+
+  // 3. Buat trigger harian
   ScriptApp.getProjectTriggers().forEach(function(t) {
     if (t.getHandlerFunction() === 'sendDailyReport') ScriptApp.deleteTrigger(t)
   })
   ScriptApp.newTrigger('sendDailyReport')
-    .timeBased()
-    .atHour(hour)
-    .everyDays(1)
-    .inTimezone('Asia/Jakarta')
-    .create()
-  return { success: true, hour: hour }
+    .timeBased().atHour(hour).everyDays(1).inTimezone('Asia/Jakarta').create()
+  Logger.log('[3/3] Trigger harian jam ' + hour + ':00 WIB aktif.')
+
+  // 4. Kirim test laporan
+  var result = sendDailyReport()
+  Logger.log('Test kirim: ' + JSON.stringify(result))
+  Logger.log('Setup selesai. Cek Telegram kamu.')
 }
 
 // ---- STATS ----
