@@ -47,8 +47,8 @@ export default function UpdateGate({ children }) {
         <div style={s.highlights}>
           <p style={s.changelogTitle}>Yang baru di versi ini:</p>
           {[
-            'Notifikasi Telegram harian otomatis',
-            'Laporan stok sedikit & kadaluarsa via bot',
+            'Perbaikan stabilitas notifikasi Telegram',
+            'Laporan otomatis jam 07:00 WIB aktif',
           ].map(t => (
             <div key={t} style={s.highlightRow}>
               <span style={s.dot} />
