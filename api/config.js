@@ -15,14 +15,14 @@ export default async function handler(req, res) {
         kv.get('exp_threshold_days'),
       ])
       return res.json({
-        gasUrl:   gasUrl  || process.env.GAS_URL || '',
-        expDays:  expDays != null ? Number(expDays) : 30,
-        configured: Boolean(gasUrl || process.env.GAS_URL),
+        gasUrl:      gasUrl  || process.env.GAS_URL || '',
+        expDays:     expDays != null ? Number(expDays) : null,
+        configured:  Boolean(gasUrl || process.env.GAS_URL),
       })
     } catch {
       return res.json({
         gasUrl:     process.env.GAS_URL || '',
-        expDays:    30,
+        expDays:    null,
         configured: Boolean(process.env.GAS_URL),
       })
     }

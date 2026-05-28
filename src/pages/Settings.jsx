@@ -39,10 +39,13 @@ export default function Settings() {
           if (local) { setGasUrl(local); setSource('local') }
         }
         if (d.expDays != null) {
+          // Server punya nilai eksplisit — pakai dan sync ke localStorage
           const n = Number(d.expDays)
           setExpDays(n)
           localStorage.setItem(LS_EXP_DAYS, String(n))
         }
+        // Jika d.expDays === null, server belum punya nilai → biarkan state
+        // dari localStorage yang sudah diinit di useState()
       })
       .catch(() => {
         const local = localStorage.getItem(LS_KEY)
@@ -64,6 +67,8 @@ export default function Settings() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expDays: n }),
+    }).then(r => {
+      if (!r.ok) console.warn('Gagal simpan expDays ke server, tersimpan di localStorage saja')
     }).catch(() => {})
   }
 
