@@ -49,7 +49,6 @@ export default function UpdateGate({ children }) {
           {[
             'Notifikasi Telegram harian otomatis',
             'Laporan stok sedikit & kadaluarsa via bot',
-            'Auto-reply /start pada bot Telegram',
           ].map(t => (
             <div key={t} style={s.highlightRow}>
               <span style={s.dot} />
