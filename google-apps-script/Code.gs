@@ -38,21 +38,47 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents)
 
+    // Telegram webhook update (update_id hadir di semua Telegram updates)
+    if (data.update_id !== undefined) {
+      _handleTelegramUpdate(data)
+      return jsonResponse({ ok: true })
+    }
+
     const action = data.action
     let result
-    if      (action === 'stockIn')           result = stockIn(data)
-    else if (action === 'stockOut')          result = stockOut(data)
-    else if (action === 'updateItem')        result = updateItem(data)
-    else if (action === 'addItem')           result = addItem(data)
-    else if (action === 'deleteItem')        result = deleteItem(data)
-    else if (action === 'saveSettings')      result = saveSettings(data)
-    else if (action === 'sendDailyReport')   result = sendDailyReport()
+    if      (action === 'stockIn')            result = stockIn(data)
+    else if (action === 'stockOut')           result = stockOut(data)
+    else if (action === 'updateItem')         result = updateItem(data)
+    else if (action === 'addItem')            result = addItem(data)
+    else if (action === 'deleteItem')         result = deleteItem(data)
+    else if (action === 'saveSettings')       result = saveSettings(data)
+    else if (action === 'sendDailyReport')    result = sendDailyReport()
     else if (action === 'sendWelcomeMessage') result = sendWelcomeMessage()
-    else                                      result = { error: 'Unknown action: ' + action }
+    else                                       result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
     return jsonResponse({ error: err.message })
   }
+}
+
+function _handleTelegramUpdate(update) {
+  const props = PropertiesService.getScriptProperties()
+  const token = props.getProperty('telegram_bot_token')
+  if (!token) return
+  const msg  = update.message
+  if (!msg)  return
+  const text = (msg.text || '').trim()
+  if (!text.startsWith('/start')) return
+  _sendTelegramMessage(token, msg.chat.id,
+    '<b>Stok Gudang — Sistem Notifikasi</b>\n\n' +
+    'Selamat datang! Anda akan menerima laporan harian otomatis.\n\n' +
+    'Laporan dikirim setiap hari pukul 07.00 WIB dan mencakup:\n' +
+    '  - Ringkasan total stok\n' +
+    '  - Pergerakan barang hari ini\n' +
+    '  - Daftar item dengan stok sedikit\n' +
+    '  - Daftar item yang mendekati kadaluarsa\n\n' +
+    '<i>Stok Gudang  |  by Aliyudin</i>'
+  )
 }
 
 function jsonResponse(obj) {
