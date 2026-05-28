@@ -75,21 +75,32 @@
     </div>
     <script>
       if ('serviceWorker' in navigator) {
+        function notifyUpdate(sw) {
+          window.dispatchEvent(new CustomEvent('swUpdateAvailable', { detail: sw }))
+        }
+
         navigator.serviceWorker.register('/sw.js').then(reg => {
-          // Jika update sudah menunggu (tab dibuka ulang)
-          if (reg.waiting) {
-            window.dispatchEvent(new CustomEvent('swUpdateAvailable', { detail: reg.waiting }))
-          }
-          // Deteksi SW baru saat ditemukan
+          // Cek langsung — kadang belum tersedia saat promise resolve
+          if (reg.waiting) notifyUpdate(reg.waiting)
+
+          // Deteksi SW baru saat installing
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing
+            if (!nw) return
             nw.addEventListener('statechange', () => {
               if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                window.dispatchEvent(new CustomEvent('swUpdateAvailable', { detail: nw }))
+                notifyUpdate(nw)
               }
             })
           })
         })
+
+        // Fallback: setelah SW aktif, cek ulang apakah ada yang masih waiting
+        // Ini menangani kasus reload di mana reg.waiting belum ter-set saat register() resolve
+        navigator.serviceWorker.ready.then(reg => {
+          if (reg.waiting) notifyUpdate(reg.waiting)
+        })
+
         // Reload otomatis saat SW baru mengambil alih
         let reloading = false
         navigator.serviceWorker.addEventListener('controllerchange', () => {
