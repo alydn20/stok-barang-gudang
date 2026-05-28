@@ -449,6 +449,7 @@ function sendDailyReport() {
     muteHttpExceptions: true,
   })
   var result = JSON.parse(resp.getContentText())
+  Logger.log('Telegram response: ' + JSON.stringify(result))
   if (!result.ok) return { success: false, error: result.description || 'Telegram API error' }
   return { success: true }
 }
