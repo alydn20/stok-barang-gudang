@@ -1,15 +1,14 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, PackagePlus, PackageMinus, ScanSearch, LayoutList, ClipboardList, Settings2 } from 'lucide-react'
+import { LayoutDashboard, PackagePlus, PackageMinus, ScanSearch, LayoutList, Settings2 } from 'lucide-react'
 
 const nav = [
-  { to: '/',          icon: LayoutDashboard, label: 'Beranda'  },
-  { to: '/masuk',     icon: PackagePlus,     label: 'Masuk'    },
-  { to: '/keluar',    icon: PackageMinus,    label: 'Keluar'   },
-  { to: '/cari',      icon: ScanSearch,      label: 'Cari'     },
-  { to: '/stok',      icon: LayoutList,      label: 'Stok'     },
-  { to: '/riwayat',   icon: ClipboardList,   label: 'Riwayat'  },
-  { to: '/settings',  icon: Settings2,       label: 'Setelan'  },
+  { to: '/',         icon: LayoutDashboard, label: 'Beranda'  },
+  { to: '/masuk',    icon: PackagePlus,     label: 'Masuk'    },
+  { to: '/keluar',   icon: PackageMinus,    label: 'Keluar'   },
+  { to: '/cari',     icon: ScanSearch,      label: 'Cari'     },
+  { to: '/stok',     icon: LayoutList,      label: 'Stok'     },
+  { to: '/settings', icon: Settings2,       label: 'Setelan'  },
 ]
 
 // Bottom nav — visible on mobile only, hidden on desktop via CSS

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { ScanLine, CheckCircle2, XCircle, PackagePlus, Loader2, Layers } from 'lucide-react'
+import { ScanLine, CheckCircle2, XCircle, PackagePlus, Loader2, Layers, ClipboardList } from 'lucide-react'
 import Scanner from '../components/Scanner'
+import HistoryPanel from '../components/HistoryPanel'
 import { sheetsApi } from '../services/sheetsApi'
 
 const empty = { barcode: '', nama: '', qty: '', exp: '', posisi: '', catatan: '', kategori: '', stokAwal: '', batch: '' }
@@ -14,6 +15,7 @@ export default function StockIn() {
   const [found, setFound] = useState(null) // null=belum cari, true=ada, false=tidak ada
   const [batches, setBatches] = useState([])
   const [batchMode, setBatchMode] = useState('new') // 'existing' | 'new'
+  const [tab, setTab] = useState('form')
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -102,7 +104,21 @@ export default function StockIn() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} style={s.form}>
+      {/* Tab bar */}
+      <div style={s.tabBar}>
+        <button type="button" onClick={() => setTab('form')}
+          style={{ ...s.tabBtn, ...(tab === 'form' ? s.tabActive : {}) }}>
+          <PackagePlus size={14} /> Input
+        </button>
+        <button type="button" onClick={() => setTab('riwayat')}
+          style={{ ...s.tabBtn, ...(tab === 'riwayat' ? s.tabActive : {}) }}>
+          <ClipboardList size={14} /> Riwayat
+        </button>
+      </div>
+
+      {tab === 'riwayat' && <HistoryPanel defaultType="MASUK" />}
+
+      {tab === 'form' && <form onSubmit={handleSubmit} style={s.form}>
         {/* Barcode */}
         <div>
           <label className="label">Barcode <span style={s.required}>*</span></label>
@@ -276,12 +292,15 @@ export default function StockIn() {
           <PackagePlus size={18} />
           {loading ? 'Menyimpan...' : 'Simpan Barang Masuk'}
         </button>
-      </form>
+      </form>}
     </div>
   )
 }
 
 const s = {
+  tabBar:        { display: 'flex', gap: 6, marginBottom: 16 },
+  tabBtn:        { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#64748B' },
+  tabActive:     { background: '#F0FDF4', borderColor: '#86EFAC', color: '#16A34A' },
   titleRow:      { display: 'flex', alignItems: 'center', gap: 10 },
   titleIcon:     { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   title:         { fontSize: 20, fontWeight: 700, color: '#0F172A' },

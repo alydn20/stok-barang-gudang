@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Navbar from './components/Navbar'
@@ -13,6 +13,13 @@ import History from './pages/History'
 import Settings from './pages/Settings'
 
 export default function App() {
+  useEffect(() => {
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(d => { if (d.expDays != null) localStorage.setItem('exp_threshold_days', String(d.expDays)) })
+      .catch(() => {})
+  }, [])
+
   return (
     <BrowserRouter>
       <UpdateGate>

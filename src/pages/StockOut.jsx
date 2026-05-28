@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { ScanLine, CheckCircle2, XCircle, PackageMinus, MapPin, Package, Calendar, Loader2, Layers, Zap } from 'lucide-react'
+import { ScanLine, CheckCircle2, XCircle, PackageMinus, MapPin, Package, Calendar, Loader2, Layers, Zap, ClipboardList } from 'lucide-react'
 import Scanner from '../components/Scanner'
+import HistoryPanel from '../components/HistoryPanel'
 import { sheetsApi } from '../services/sheetsApi'
 
 const LS_STRATEGY = 'stockout_strategy'
@@ -14,6 +15,7 @@ export default function StockOut() {
   const [searching, setSearching] = useState(false)
   const [status, setStatus] = useState(null)
   const [selectedBatch, setSelectedBatch] = useState(null) // null = auto, string = batch tertentu
+  const [tab, setTab] = useState('form')
 
   const strategy = getStrategy()
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -94,7 +96,21 @@ export default function StockOut() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} style={s.form}>
+      {/* Tab bar */}
+      <div style={s.tabBar}>
+        <button type="button" onClick={() => setTab('form')}
+          style={{ ...s.tabBtn, ...(tab === 'form' ? s.tabActive : {}) }}>
+          <PackageMinus size={14} /> Input
+        </button>
+        <button type="button" onClick={() => setTab('riwayat')}
+          style={{ ...s.tabBtn, ...(tab === 'riwayat' ? s.tabActive : {}) }}>
+          <ClipboardList size={14} /> Riwayat
+        </button>
+      </div>
+
+      {tab === 'riwayat' && <HistoryPanel defaultType="KELUAR" />}
+
+      {tab === 'form' && <form onSubmit={handleSubmit} style={s.form}>
         {/* Barcode */}
         <div>
           <label className="label">Barcode <span style={s.req}>*</span></label>
@@ -213,12 +229,15 @@ export default function StockOut() {
           <PackageMinus size={18} />
           {loading ? 'Menyimpan...' : 'Simpan Barang Keluar'}
         </button>
-      </form>
+      </form>}
     </div>
   )
 }
 
 const s = {
+  tabBar:        { display: 'flex', gap: 6, marginBottom: 16 },
+  tabBtn:        { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#64748B' },
+  tabActive:     { background: '#FEF2F2', borderColor: '#FCA5A5', color: '#DC2626' },
   titleRow:      { display: 'flex', alignItems: 'center', gap: 10 },
   titleIcon:     { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   title:         { fontSize: 20, fontWeight: 700, color: '#0F172A' },
