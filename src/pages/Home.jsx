@@ -87,10 +87,12 @@ export default function Home() {
           val={stats ? (stats.totalItem ?? 0) : '—'} label="Total Item" />
         <StatCard icon={<TrendingDown size={17} color="#DC2626" />} bg="#FEF2F2"
           val={stats ? (stats.lowStock ?? 0) : '—'} label="Stok Sedikit"
-          warn={(stats?.lowStock ?? 0) > 0} warnColor="#DC2626" />
+          warn={(stats?.lowStock ?? 0) > 0} warnColor="#DC2626"
+          onView={(stats?.lowStock ?? 0) > 0 ? () => navigate('/stok', { state: { filter: 'low' } }) : null} />
         <StatCard icon={<Clock size={17} color="#D97706" />} bg="#FFFBEB"
           val={stats ? (stats.expiringSoon ?? 0) : '—'} label="Segera Exp"
-          warn={(stats?.expiringSoon ?? 0) > 0} warnColor="#D97706" />
+          warn={(stats?.expiringSoon ?? 0) > 0} warnColor="#D97706"
+          onView={(stats?.expiringSoon ?? 0) > 0 ? () => navigate('/stok', { state: { filter: 'expiring' } }) : null} />
       </div>
 
       {/* Today row */}
@@ -200,12 +202,17 @@ export default function Home() {
   )
 }
 
-function StatCard({ icon, bg, val, label, warn, warnColor }) {
+function StatCard({ icon, bg, val, label, warn, warnColor, onView }) {
   return (
     <div style={{ ...s.statCard, borderColor: warn ? warnColor + '66' : '#E2E8F0' }}>
       <div style={{ ...s.statIcon, background: bg }}>{icon}</div>
       <span style={{ ...s.statNum, color: warn ? warnColor : '#0F172A' }}>{val}</span>
       <span style={s.statLabel}>{label}</span>
+      {onView && (
+        <button onClick={onView} style={{ ...s.viewBtn, color: warnColor, background: warnColor + '18', borderColor: warnColor + '44' }}>
+          Lihat
+        </button>
+      )}
     </div>
   )
 }
@@ -220,6 +227,7 @@ const s = {
   statIcon:     { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   statNum:      { fontSize: 22, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.02em' },
   statLabel:    { fontSize: 10, color: '#64748B', textAlign: 'center', lineHeight: 1.3, fontWeight: 500 },
+  viewBtn:      { marginTop: 4, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, border: '1px solid', cursor: 'pointer', letterSpacing: '0.02em' },
   todayRow:     { display: 'flex', background: '#fff', border: '1px solid #E8EEF6', borderRadius: 14, marginBottom: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
   todayCard:    { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '13px 8px' },
   todayDivider: { width: 1, background: '#EEF2F7', margin: '10px 0' },

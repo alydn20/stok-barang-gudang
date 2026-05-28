@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { RefreshCw, Search, MapPin, Calendar, AlertTriangle, Package, Loader2, LayoutList, Pencil, Trash2, X, Check, Download, Tag, Layers } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import { sheetsApi } from '../services/sheetsApi'
 
 const STATUS_FILTERS = [
@@ -10,10 +11,11 @@ const STATUS_FILTERS = [
 ]
 
 export default function StockList() {
+  const location = useLocation()
   const [items,     setItems]     = useState([])
   const [loading,   setLoading]   = useState(true)
   const [search,    setSearch]    = useState('')
-  const [filter,    setFilter]    = useState('all')
+  const [filter,    setFilter]    = useState(location.state?.filter || 'all')
   const [katFilter, setKatFilter] = useState('all')
   const [editItem,  setEditItem]  = useState(null)
   const [delItem,   setDelItem]   = useState(null)
