@@ -228,7 +228,6 @@ export default function Settings() {
         </div>
         <p style={{ fontSize: 12, color: '#64748B', marginBottom: 14, lineHeight: 1.7 }}>
           Laporan harian otomatis dikirim setiap hari pukul <strong>07:00 WIB</strong>.
-          Lakukan setup sekali, lalu bot aktif selamanya.
         </p>
 
         {/* Langkah 1 */}
@@ -265,9 +264,6 @@ export default function Settings() {
             {webhookRes.msg}
           </div>
         )}
-        <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 8, textAlign: 'center' }}>
-          Setelah aktif → buka bot → ketik <strong>/start</strong> → pesan sambutan otomatis terkirim
-        </p>
       </div>
 
       {/* Tentang */}
