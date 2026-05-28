@@ -47,9 +47,9 @@ export default function UpdateGate({ children }) {
         <div style={s.highlights}>
           <p style={s.changelogTitle}>Yang baru di versi ini:</p>
           {[
-            'Pengaturan batas hari peringatan kadaluarsa',
-            'Setelan disimpan ke server (Vercel KV)',
-            'Pembaruan wajib sebelum app bisa digunakan',
+            'Notifikasi Telegram harian otomatis',
+            'Laporan stok sedikit & kadaluarsa via bot',
+            'Auto-reply /start pada bot Telegram',
           ].map(t => (
             <div key={t} style={s.highlightRow}>
               <span style={s.dot} />
