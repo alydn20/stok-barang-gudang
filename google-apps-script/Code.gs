@@ -44,8 +44,9 @@ function doPost(e) {
     else if (action === 'updateItem')   result = updateItem(data)
     else if (action === 'addItem')      result = addItem(data)
     else if (action === 'deleteItem')   result = deleteItem(data)
-    else if (action === 'saveSettings') result = saveSettings(data)
-    else                                result = { error: 'Unknown action: ' + action }
+    else if (action === 'saveSettings')   result = saveSettings(data)
+    else if (action === 'sendDailyReport') result = sendDailyReport()
+    else                                   result = { error: 'Unknown action: ' + action }
     return jsonResponse(result)
   } catch (err) {
     return jsonResponse({ error: err.message })
@@ -381,16 +382,92 @@ function deleteItem(data) {
 function getSettings() {
   const props = PropertiesService.getScriptProperties()
   const expDays = props.getProperty('exp_threshold_days')
-  return { expDays: expDays != null ? Number(expDays) : null }
+  return {
+    expDays:          expDays != null ? Number(expDays) : null,
+    telegramBotToken: props.getProperty('telegram_bot_token') || '',
+    telegramChatId:   props.getProperty('telegram_chat_id')   || '',
+    telegramHour:     Number(props.getProperty('telegram_hour') || 7),
+  }
 }
 
 function saveSettings(data) {
   const props = PropertiesService.getScriptProperties()
   if (data.expDays !== undefined) {
-    const n = Math.max(1, Math.min(365, Number(data.expDays)))
-    props.setProperty('exp_threshold_days', String(n))
+    props.setProperty('exp_threshold_days', String(Math.max(1, Math.min(365, Number(data.expDays)))))
   }
+  if (data.telegramBotToken !== undefined) props.setProperty('telegram_bot_token', data.telegramBotToken.toString().trim())
+  if (data.telegramChatId   !== undefined) props.setProperty('telegram_chat_id',   data.telegramChatId.toString().trim())
+  if (data.telegramHour     !== undefined) props.setProperty('telegram_hour',       String(Math.max(0, Math.min(23, Number(data.telegramHour)))))
   return { success: true }
+}
+
+// ---- TELEGRAM ----
+
+function sendDailyReport() {
+  const props    = PropertiesService.getScriptProperties()
+  const token    = props.getProperty('telegram_bot_token')
+  const chatId   = props.getProperty('telegram_chat_id')
+  if (!token || !chatId) return { success: false, error: 'Token atau Chat ID belum dikonfigurasi.' }
+
+  const expDays  = Number(props.getProperty('exp_threshold_days') || 30)
+  const stats    = getStats({ expDays: expDays })
+  const now      = new Date()
+  const dateStr  = Utilities.formatDate(now, 'Asia/Jakarta', 'dd MMMM yyyy')
+  const timeStr  = Utilities.formatDate(now, 'Asia/Jakarta', 'HH:mm')
+
+  const lines = [
+    '📦 <b>Laporan Harian — Stok Gudang</b>',
+    '📅 ' + dateStr + ' · ' + timeStr + ' WIB',
+    '',
+    '📊 <b>Ringkasan Stok:</b>',
+    '• Total Item      : <b>' + stats.totalItem + '</b>',
+    '• Masuk hari ini  : <b>' + stats.todayMasuk + '</b>',
+    '• Keluar hari ini : <b>' + stats.todayKeluar + '</b>',
+  ]
+
+  const alerts = []
+  if (stats.lowStock     > 0) alerts.push('⚠️ Stok sedikit      : <b>' + stats.lowStock     + '</b> item')
+  if (stats.expiringSoon > 0) alerts.push('🕐 Segera exp (≤' + expDays + 'h) : <b>' + stats.expiringSoon + '</b> item')
+  if (stats.expired      > 0) alerts.push('❌ Sudah kadaluarsa  : <b>' + stats.expired      + '</b> item')
+
+  if (alerts.length > 0) {
+    lines.push('')
+    lines.push('🔔 <b>Perhatian:</b>')
+    alerts.forEach(function(a) { lines.push(a) })
+  } else {
+    lines.push('')
+    lines.push('✅ Semua stok dalam kondisi aman!')
+  }
+
+  lines.push('')
+  lines.push('<i>— Stok Gudang (By Aliyudin)</i>')
+
+  var resp = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify({ chat_id: chatId, text: lines.join('\n'), parse_mode: 'HTML' }),
+    muteHttpExceptions: true,
+  })
+  var result = JSON.parse(resp.getContentText())
+  if (!result.ok) return { success: false, error: result.description || 'Telegram API error' }
+  return { success: true }
+}
+
+function setupDailyTrigger() {
+  var props = PropertiesService.getScriptProperties()
+  var hour  = Number(props.getProperty('telegram_hour') || 7)
+  // Hapus trigger lama
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'sendDailyReport') ScriptApp.deleteTrigger(t)
+  })
+  // Buat trigger baru
+  ScriptApp.newTrigger('sendDailyReport')
+    .timeBased()
+    .atHour(hour)
+    .everyDays(1)
+    .inTimezone('Asia/Jakarta')
+    .create()
+  return { success: true, hour: hour }
 }
 
 // ---- STATS ----
