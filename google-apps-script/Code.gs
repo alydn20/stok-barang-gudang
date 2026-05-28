@@ -463,6 +463,16 @@ function initTelegramConfig() {
   Logger.log('Telegram config saved to PropertiesService.')
 }
 
+function checkTelegramConfig() {
+  var props   = PropertiesService.getScriptProperties()
+  var token   = props.getProperty('telegram_bot_token')
+  var chatId  = props.getProperty('telegram_chat_id')
+  var hour    = props.getProperty('telegram_hour')
+  Logger.log('token  : ' + (token  ? token.substring(0, 10) + '...' : 'KOSONG'))
+  Logger.log('chatId : ' + (chatId || 'KOSONG'))
+  Logger.log('hour   : ' + (hour   || 'KOSONG'))
+}
+
 function setupDailyTrigger() {
   var props = PropertiesService.getScriptProperties()
   var hour  = Number(props.getProperty('telegram_hour') || 7)
