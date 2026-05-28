@@ -3,7 +3,7 @@ import {
   CheckCircle2, XCircle, Save, Wifi,
   Settings2, Info, Loader2, Server,
   HardDrive, Cloud, SlidersHorizontal, CalendarClock,
-  BellRing, ExternalLink,
+  BellRing, ExternalLink, Zap,
 } from 'lucide-react'
 import { sheetsApi } from '../services/sheetsApi'
 
@@ -27,8 +27,10 @@ export default function Settings() {
   const [testResult, setTestResult] = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [source,     setSource]     = useState('')
-  const [strategy,       setStrategy]       = useState(localStorage.getItem(LS_STRATEGY) || 'MANUAL')
-  const [expDays,        setExpDays]        = useState(Number(localStorage.getItem(LS_EXP_DAYS) || 30))
+  const [strategy,     setStrategy]     = useState(localStorage.getItem(LS_STRATEGY) || 'MANUAL')
+  const [expDays,      setExpDays]      = useState(Number(localStorage.getItem(LS_EXP_DAYS) || 30))
+  const [webhookBusy,  setWebhookBusy]  = useState(false)
+  const [webhookRes,   setWebhookRes]   = useState(null)
 
   useEffect(() => {
     // Load GAS URL
@@ -226,16 +228,45 @@ export default function Settings() {
         </div>
         <p style={{ fontSize: 12, color: '#64748B', marginBottom: 14, lineHeight: 1.7 }}>
           Laporan harian otomatis dikirim setiap hari pukul <strong>07:00 WIB</strong>.
-          Follow bot terlebih dahulu, lalu kirim pesan sambutan.
+          Lakukan setup sekali, lalu bot aktif selamanya.
         </p>
+
+        {/* Langkah 1 */}
         <a href="https://t.me/StokBarangByAliyudin_BOT" target="_blank" rel="noopener noreferrer"
           style={s.tgFollowBtn}>
           <BellRing size={15} />
-          Follow @StokBarangByAliyudin_BOT
+          1. Follow @StokBarangByAliyudin_BOT
           <ExternalLink size={13} style={{ marginLeft: 'auto' }} />
         </a>
+
+        {/* Langkah 2 */}
+        <button
+          onClick={async () => {
+            setWebhookBusy(true); setWebhookRes(null)
+            try {
+              const r = await fetch('/api/telegram-setup')
+              const d = await r.json()
+              setWebhookRes(d.result?.ok
+                ? { ok: true,  msg: 'Webhook aktif! Sekarang coba /start di bot.' }
+                : { ok: false, msg: d.result?.description || d.error || 'Gagal.' })
+            } catch (e) { setWebhookRes({ ok: false, msg: e.message }) }
+            finally { setWebhookBusy(false) }
+          }}
+          disabled={webhookBusy}
+          className="btn btn-primary"
+          style={{ width: '100%', marginTop: 8 }}>
+          {webhookBusy ? <Loader2 size={15} className="spin" /> : <Zap size={15} />}
+          {webhookBusy ? 'Mengaktifkan...' : '2. Aktifkan Auto-Reply /start'}
+        </button>
+
+        {webhookRes && (
+          <div className={`alert ${webhookRes.ok ? 'alert-success' : 'alert-danger'} fade-in`} style={{ marginTop: 8 }}>
+            {webhookRes.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+            {webhookRes.msg}
+          </div>
+        )}
         <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 8, textAlign: 'center' }}>
-          Buka bot → klik <strong>Start</strong> → pesan sambutan otomatis terkirim
+          Setelah aktif → buka bot → ketik <strong>/start</strong> → pesan sambutan otomatis terkirim
         </p>
       </div>
 
